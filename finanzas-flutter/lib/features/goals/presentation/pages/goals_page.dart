@@ -128,7 +128,7 @@ class _GoalCard extends StatelessWidget {
     final fmt = NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E2C).withValues(alpha: 0.6), // Glassmorphism dark

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/wishlist_item.dart';
@@ -186,8 +187,30 @@ class _WishlistCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (item.note != null) ...[
-                  const SizedBox(height: 4),
+                // Chips de info: cuotas, promo, link
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (item.installments > 1)
+                      _InfoChip(
+                        icon: Icons.credit_card_rounded,
+                        label: '${item.installments} cuotas de ${NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(item.estimatedCost / item.installments)}',
+                        color: AppTheme.colorTransfer,
+                      ),
+                    if (item.hasPromo)
+                      _InfoChip(
+                        icon: Icons.local_offer_rounded,
+                        label: 'Con promo',
+                        color: const Color(0xFF4CAF50),
+                      ),
+                    if (item.url != null && item.url!.isNotEmpty)
+                      _UrlChip(url: item.url!),
+                  ],
+                ),
+                if (item.note != null && item.note!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
                   Text(
                     item.note!,
                     style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
@@ -278,6 +301,80 @@ class _WishlistCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Chips de info ────────────────────────────────────────────
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _InfoChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 13),
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+class _UrlChip extends StatelessWidget {
+  final String url;
+  const _UrlChip({required this.url});
+
+  bool get _isMercadoLibre =>
+      url.contains('mercadolibre') || url.contains('meli') || url.contains('mercadopago');
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _isMercadoLibre ? const Color(0xFFFFE600) : AppTheme.colorWarning;
+    final textColor = _isMercadoLibre ? Colors.black87 : Colors.white;
+    final label = _isMercadoLibre ? 'Ver en Mercado Libre' : 'Ver producto';
+    final icon = _isMercadoLibre ? Icons.store_rounded : Icons.open_in_new_rounded;
+
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.tryParse(url);
+        if (uri != null && await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir el link')),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 13),
+            const SizedBox(width: 5),
+            Text(label, style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }

@@ -42,9 +42,9 @@ class AccountsPage extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Color(acc.colorValue).withValues(alpha: 0.15),
+                color: Color(int.parse(acc.color?.replaceAll('#', '0xFF') ?? '0xFF888888')).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Color(acc.colorValue).withValues(alpha: 0.3)),
+                border: Border.all(color: Color(int.parse(acc.color?.replaceAll('#', '0xFF') ?? '0xFF888888')).withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -52,12 +52,12 @@ class AccountsPage extends ConsumerWidget {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Color(acc.colorValue).withValues(alpha: 0.2),
+                      color: Color(int.parse(acc.color?.replaceAll('#', '0xFF') ?? '0xFF888888')).withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                        _getIconData(acc.iconName), 
-                        color: Color(acc.colorValue)
+                        _getIconData(acc.icon ?? ''), 
+                        color: Color(int.parse(acc.color?.replaceAll('#', '0xFF') ?? '0xFF888888'))
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -81,7 +81,7 @@ class AccountsPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        formatAmount(acc.initialBalance),
+                        formatAmount(acc.balance),
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,

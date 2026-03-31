@@ -29,7 +29,9 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
   final _titleController = TextEditingController();
   final _costController = TextEditingController();
   final _noteController = TextEditingController();
+  final _urlController = TextEditingController();
   int _installments = 1;
+  bool _hasPromo = false;
 
   @override
   void initState() {
@@ -37,6 +39,9 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
     _titleController.text = widget.itemToEdit?.title ?? '';
     _costController.text = widget.itemToEdit != null ? widget.itemToEdit!.estimatedCost.toInt().toString() : '';
     _noteController.text = widget.itemToEdit?.note ?? '';
+    _urlController.text = widget.itemToEdit?.url ?? '';
+    _installments = widget.itemToEdit?.installments ?? 1;
+    _hasPromo = widget.itemToEdit?.hasPromo ?? false;
   }
 
   @override
@@ -44,6 +49,7 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
     _titleController.dispose();
     _costController.dispose();
     _noteController.dispose();
+    _urlController.dispose();
     super.dispose();
   }
 
@@ -149,18 +155,48 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _noteController,
-            maxLines: 2,
+            controller: _urlController,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: 'Notas adicionales (Opcional)',
+              hintText: 'Ej. https://mercadolibre.com.ar/item',
               hintStyle: const TextStyle(color: Colors.white38),
+              labelText: 'Link del producto (Opcional)',
+              labelStyle: const TextStyle(color: AppTheme.colorWarning),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: AppTheme.colorWarning),
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _noteController,
+                  maxLines: 2,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Notas...',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: AppTheme.colorWarning),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            title: const Text('Tiene promo/descuento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            value: _hasPromo,
+            onChanged: (val) => setState(() => _hasPromo = val),
+            activeColor: AppTheme.colorWarning,
+            contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 32),
           SizedBox(
@@ -177,6 +213,9 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
                       title: _titleController.text,
                       estimatedCost: cost,
                       note: _noteController.text,
+                      url: _urlController.text,
+                      installments: _installments,
+                      hasPromo: _hasPromo,
                     ),
                   );
                 } else {
@@ -186,6 +225,9 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
                     estimatedCost: cost,
                     createdAt: DateTime.now(),
                     note: _noteController.text,
+                    url: _urlController.text,
+                    installments: _installments,
+                    hasPromo: _hasPromo,
                   );
                   ref.read(mockWishlistProvider.notifier).add(newItem);
                 }

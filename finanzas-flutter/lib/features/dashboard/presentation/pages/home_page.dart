@@ -12,6 +12,7 @@ import '../widgets/accounts_row.dart';
 import '../widgets/recent_transactions_list.dart';
 import '../widgets/add_transaction_fab.dart';
 import '../../../alerts/presentation/widgets/alerts_bottom_sheet.dart';
+import '../../../../shared/widgets/sync_loading_overlay.dart';
 import '../../../../core/logic/financial_logic.dart';
 import '../widgets/card_alert_banner.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,114 +31,138 @@ class HomePage extends ConsumerWidget {
     final now = DateTime.now();
     final monthName = DateFormat('MMMM yyyy', 'es').format(now);
 
+    // Simulamos un estado de carga inicial de 2 segundos para "Sincronizar"
+    final isSyncing = ref.watch(_isSyncingProvider);
+
     return Scaffold(
       backgroundColor: cs.surface,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // ── App Bar ──────────────────────────────────
-          SliverAppBar(
-            floating: true,
-            backgroundColor: cs.surface,
-            surfaceTintColor: Colors.transparent,
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Finanzas',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
-                  ),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // ── App Bar ──────────────────────────────────
+              SliverAppBar(
+                floating: true,
+                backgroundColor: cs.surface,
+                surfaceTintColor: Colors.transparent,
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Finanzas',
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    Text(
+                      monthName,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  monthName,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: cs.onSurfaceVariant,
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.notifications_outlined, color: cs.onSurface),
+                    onPressed: () {
+                      AlertsBottomSheet.show(context);
+                    },
                   ),
+                  IconButton(
+                    icon: Icon(Icons.settings_outlined, color: cs.onSurface),
+                    onPressed: () => context.push('/settings'),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+
+              // ── Contenido ────────────────────────────────
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 8),
+
+                    // Hero: balance del mes (Presupuesto Seguro)
+                    BalanceHeroCard(
+                      balance: balance,
+                      safeBudget: brain.safeBudgetARS,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Alerta de Tarjeta (Multi-card alerts)
+                    if (brain.visaDebt > 0)
+                      CardAlertBanner(
+                        cardName: 'Visa Signature',
+                        amount: brain.visaDebt,
+                        dueDate: DateTime(2026, 4, 3),
+                        closingDate: DateTime(2026, 3, 20),
+                      ),
+                    
+                    if (brain.mastercardDebt > 0)
+                      CardAlertBanner(
+                        cardName: 'Mastercard Black',
+                        amount: brain.mastercardDebt,
+                        dueDate: DateTime(2026, 4, 8),
+                        closingDate: DateTime(2026, 3, 26),
+                      ),
+                    
+                    const SizedBox(height: 12),
+
+                    // Stats rápidos
+                    QuickStatsRow(balance: balance),
+                    const SizedBox(height: 20),
+
+                    // Cuentas
+                    SectionHeader(
+                      title: 'Mis cuentas',
+                      actionLabel: 'Ver todas',
+                      onAction: () => context.push('/accounts'),
+                    ),
+                    const SizedBox(height: 8),
+                    AccountsRow(accounts: accounts),
+                    const SizedBox(height: 20),
+
+                    // Movimientos recientes
+                    SectionHeader(
+                      title: 'Movimientos detallados',
+                      actionLabel: 'Ver todos',
+                      onAction: () => context.go('/transactions'),
+                    ),
+                    const SizedBox(height: 8),
+                    RecentTransactionsList(transactions: txs.take(10).toList()),
+                    const SizedBox(height: 100),
+                  ]),
                 ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.notifications_outlined, color: cs.onSurface),
-                onPressed: () {
-                  AlertsBottomSheet.show(context);
-                },
               ),
-              IconButton(
-                icon: Icon(Icons.settings_outlined, color: cs.onSurface),
-                onPressed: () => context.push('/settings'),
-              ),
-              const SizedBox(width: 4),
             ],
           ),
-
-          // ── Contenido ────────────────────────────────
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const SizedBox(height: 8),
-
-                // Hero: balance del mes (Presupuesto Seguro)
-                BalanceHeroCard(
-                  balance: balance,
-                  safeBudget: brain.safeBudgetARS,
-                ),
-                const SizedBox(height: 12),
-
-                // Alerta de Tarjeta (Real data from PDF)
-                CardAlertBanner(
-                  cardName: 'Mastercard',
-                  amount: 79987.00,
-                  dueDate: DateTime(2026, 4, 8),
-                  closingDate: DateTime(2026, 3, 26),
-                ),
-                const SizedBox(height: 12),
-
-                // Stats rápidos
-                QuickStatsRow(balance: balance),
-                const SizedBox(height: 20),
-
-                // Cuentas
-                SectionHeader(
-                  title: 'Mis cuentas',
-                  actionLabel: 'Ver todas',
-                  onAction: () => context.push('/accounts'),
-                ),
-                const SizedBox(height: 8),
-                AccountsRow(accounts: accounts),
-                const SizedBox(height: 20),
-
-                // Pendiente a recuperar (si hay)
-                if (balance.pendingToRecover > 0) ...[
-                  _PendingRecoverBanner(amount: balance.pendingToRecover),
-                  const SizedBox(height: 20),
-                ],
-
-                // Movimientos recientes
-                SectionHeader(
-                  title: 'Movimientos recientes',
-                  actionLabel: 'Ver todos',
-                  onAction: () => context.go('/transactions'),
-                ),
-                const SizedBox(height: 8),
-                RecentTransactionsList(transactions: txs.take(5).toList()),
-                const SizedBox(height: 100),
-              ]),
-            ),
-          ),
+          
+          if (isSyncing)
+            const SyncLoadingOverlay(progress: 0.8),
         ],
       ),
-      floatingActionButton: const AddTransactionFab(),
+      floatingActionButton: isSyncing ? null : const AddTransactionFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
+
+  }
+}
+
+final _isSyncingProvider = StateProvider<bool>((ref) {
+  Future.delayed(const Duration(seconds: 2), () {
+    ref.read(ref.controller.notifier).state = false;
+  });
+  return true;
+});
 
 // ─────────────────────────────────────────────────────
 // Banner de pendiente a recuperar

@@ -7,43 +7,42 @@ class FinancialBrain {
   final double arsCashBalance;
   final double usdCashBalance;
   final double peopleOweMe;
-  final double totalCreditCardDebt;
+  final double mastercardDebt;
+  final double visaDebt;
   final double upcomingFixedExpenses;
 
   FinancialBrain({
     required this.arsCashBalance,
     required this.usdCashBalance,
     required this.peopleOweMe,
-    required this.totalCreditCardDebt,
+    required this.mastercardDebt,
+    required this.visaDebt,
     required this.upcomingFixedExpenses,
   });
 
-  /// Safe Budget = (ARS Cash + Shared debts) - (Card Debts + Fixed Expenses)
+  /// Safe Budget = (ARS Cash + Shared debts) - (MC Debt + Visa Debt + Fixed Expenses)
   double get safeBudgetARS => 
-      (arsCashBalance + peopleOweMe) - (totalCreditCardDebt + upcomingFixedExpenses);
+      (arsCashBalance + peopleOweMe) - (mastercardDebt + visaDebt + upcomingFixedExpenses);
 
   /// Recommendation based on balances
   String get message {
-    if (safeBudgetARS < 0) return "⚠️ Cuidado: Tus deudas de tarjeta y gastos fijos superan tu efectivo hoy.";
-    if (safeBudgetARS < 100000) return "🛡️ Presupuesto ajustado. Priorizá pagar la tarjeta.";
-    return "✅ Presupuesto Seguro: Tenés cubiertos tus gastos fijos y la tarjeta.";
+    if (safeBudgetARS < 0) return "⚠️ Atención: Tus deudas de tarjeta superan tu efectivo disponible.";
+    if (safeBudgetARS < 100000) return "🛡️ Presupuesto muy ajustado.";
+    return "✅ Todo bajo control.";
   }
 }
 
 final financialBrainProvider = Provider<FinancialBrain>((ref) {
-  // In a real app, these would come from StreamProviders of the database.
-  // For now, we inject the real data we got from the PDFs/Screenshots.
-  
   final fixedBudgets = ref.watch(fixedBudgetsProvider);
   final totalFixed = fixedBudgets.fold(0.0, (sum, b) => sum + b.limitAmount);
-  
   final peopleTotal = ref.watch(globalPeopleBalanceProvider);
   
   return FinancialBrain(
-    arsCashBalance: 692932.13,   // Mercado Pago ARS
-    usdCashBalance: 2101.12,    // AstroPay USD
-    peopleOweMe: peopleTotal,    // Deudas de Sofia/Juan
-    totalCreditCardDebt: 79987.00, // Lo que dice el resumen de Abril
+    arsCashBalance: 692932.13,   // Mercado Pago
+    usdCashBalance: 2101.12,    // AstroPay
+    peopleOweMe: peopleTotal,    // $274k aprox
+    mastercardDebt: 1522588.00,  // Resumen Mar
+    visaDebt: 511659.00,        // Resumen Abr
     upcomingFixedExpenses: totalFixed,
   );
 });

@@ -39,16 +39,30 @@ class DatabaseSeeder {
       initialBalance: const Value(2101.12),
     ));
 
+    // Mastercard 1.5M (Resumen Mar)
     await db.into(db.accountsTable).insert(AccountsTableCompanion.insert(
       id: 'mc_credit',
-      name: 'Mastercard',
+      name: 'Mastercard Black',
+      type: 'credit',
+      currencyCode: const Value('ARS'),
+      iconName: const Value('credit_card'),
+      colorValue: const Value(0xFF7C6EF7),
+      initialBalance: const Value(1522588.00), 
+      closingDay: const Value(26),
+      dueDay: const Value(8),
+    ));
+
+    // Visa 511k (Resumen Abr)
+    await db.into(db.accountsTable).insert(AccountsTableCompanion.insert(
+      id: 'visa_credit',
+      name: 'Visa Signature',
       type: 'credit',
       currencyCode: const Value('ARS'),
       iconName: const Value('credit_card'),
       colorValue: const Value(0xFFFF5C6E),
-      initialBalance: const Value(79987.00), // Lo que se debe hoy
-      closingDay: const Value(26),
-      dueDay: const Value(8),
+      initialBalance: const Value(511659.00),
+      closingDay: const Value(20),
+      dueDay: const Value(3),
     ));
 
     // 3. Insertar Personas Reales
@@ -57,7 +71,7 @@ class DatabaseSeeder {
       name: 'Sofía Taranto',
       alias: const Value('Sovi'),
       colorValue: const Value(0xFFE91E63),
-      totalBalance: const Value(27944.33), // Te debe
+      totalBalance: const Value(27944.33),
     ));
 
     await db.into(db.personsTable).insert(PersonsTableCompanion.insert(
@@ -65,44 +79,38 @@ class DatabaseSeeder {
       name: 'Juan Taranto',
       alias: const Value('Juancito'),
       colorValue: const Value(0xFF2196F3),
-      totalBalance: const Value(141380.67), // Te debe
+      totalBalance: const Value(141380.67),
     ));
 
-    // 4. Insertar Transacciones (Ejemplos)
+    // 4. Detalle de Gastos (Extraídos de PDF)
     await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
-      id: 'tx1',
-      title: 'Sueldo Febrero',
-      amount: 950000,
-      type: t.TransactionType.income.name,
-      categoryId: 'cat_salary',
-      accountId: 'a2',
-      date: DateTime.now().subtract(const Duration(days: 3)),
-    ));
-
-    await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
-      id: 'tx2',
-      title: 'Supermercado Coto',
-      amount: 85000,
-      type: t.TransactionType.expense.name,
-      categoryId: 'cat_super',
-      accountId: 'a2',
-      date: DateTime.now().subtract(const Duration(days: 1)),
-    ));
-
-    // Compartido
-    await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
-      id: 'tx3',
-      title: 'Sushi con Juan y Sofi',
+      id: 'tx_pdf_1',
+      title: 'Restaurante Sushi',
       amount: 45000,
       type: t.TransactionType.expense.name,
       categoryId: 'cat_food',
-      accountId: 'a1',
-      date: DateTime.now(),
-      isShared: const Value(true),
-      sharedTotalAmount: const Value(45000),
-      sharedOwnAmount: const Value(15000),
-      sharedOtherAmount: const Value(30000),
-      sharedRecovered: const Value(0),
+      accountId: 'visa_credit',
+      date: DateTime(2026, 3, 15),
+    ));
+    
+    await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
+      id: 'tx_pdf_2',
+      title: 'Supermercado Coto 02/03',
+      amount: 85200,
+      type: t.TransactionType.expense.name,
+      categoryId: 'cat_super',
+      accountId: 'mc_credit',
+      date: DateTime(2026, 3, 10),
+    ));
+
+    await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
+      id: 'tx_pdf_3',
+      title: 'Pago Tarjeta Mastercard',
+      amount: 79987,
+      type: t.TransactionType.expense.name,
+      categoryId: 'cat_financial',
+      accountId: 'mp_ars',
+      date: DateTime(2026, 4, 8),
     ));
   }
 }

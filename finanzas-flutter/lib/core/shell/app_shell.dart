@@ -39,7 +39,13 @@ class AppShell extends StatelessWidget {
         child: _FloatingNavBar(
           currentIndex: currentIndex,
           tabs: _tabs,
-          onTap: (i) => context.go(_tabs[i].path),
+          onTap: (i) {
+            // Ensure any open bottom sheet or dialog is closed before tab change
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+            context.go(_tabs[i].path);
+          },
         ),
       ),
     );

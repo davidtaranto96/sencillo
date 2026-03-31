@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../features/accounts/domain/models/account.dart';
 import '../../../../core/utils/format_utils.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -62,7 +63,7 @@ class _AccountCard extends StatelessWidget {
         : AppTheme.colorTransfer;
 
     return GestureDetector(
-      onTap: () {},
+      onTap: () => context.push('/accounts/${account.id}'),
       child: Container(
         width: 150,
         padding: const EdgeInsets.all(14),

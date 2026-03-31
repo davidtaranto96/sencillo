@@ -19,8 +19,8 @@ class ParsedTransaction {
   final bool isInstallment;
   final int? installmentCurrent;
   final int? installmentTotal;
-  final String suggestedCategoryId;
-  final String suggestedCategoryName;
+  String suggestedCategoryId;
+  String suggestedCategoryName;
 
   /// Controlado por el usuario en la pantalla de revisión antes de importar.
   bool isSelected;

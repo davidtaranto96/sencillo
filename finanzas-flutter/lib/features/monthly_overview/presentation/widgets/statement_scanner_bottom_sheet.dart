@@ -624,12 +624,23 @@ class _TransactionReviewItem extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Text(
-                          transaction.suggestedCategoryName,
-                          style: TextStyle(
-                              color: AppTheme.colorTransfer
-                                  .withValues(alpha: 0.8),
-                              fontSize: 11),
+                        GestureDetector(
+                          onTap: () => _showCategoryPicker(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.colorTransfer.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              transaction.suggestedCategoryName,
+                              style: TextStyle(
+                                  color: AppTheme.colorTransfer
+                                      .withValues(alpha: 0.8),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
                         ),
                         if (transaction.isInstallment) ...[
                           const SizedBox(width: 6),
@@ -668,6 +679,46 @@ class _TransactionReviewItem extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryPicker(BuildContext context) {
+    // Categories list based on PdfParserService keywords
+    final categories = [
+      {'id': 'cat_alim', 'name': 'Alimentación'},
+      {'id': 'cat_super', 'name': 'Supermercado'},
+      {'id': 'cat_entret', 'name': 'Entretenimiento'},
+      {'id': 'cat_transp', 'name': 'Transporte'},
+      {'id': 'cat_salud', 'name': 'Salud'},
+      {'id': 'cat_hogar', 'name': 'Hogar'},
+      {'id': 'cat_tecno', 'name': 'Tecnología'},
+      {'id': 'cat_ropa', 'name': 'Ropa'},
+      {'id': 'cat_otros_gasto', 'name': 'Otros alimentos'},
+      {'id': 'cat_finanzas', 'name': 'Finanzas'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E2C),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: categories.length,
+          itemBuilder: (context, i) => ListTile(
+            leading: const Icon(Icons.category_outlined, color: AppTheme.colorTransfer),
+            title: Text(categories[i]['name']!, style: const TextStyle(color: Colors.white, fontSize: 14)),
+            onTap: () {
+              // Update transaction and trigger rebuild via onToggle
+              transaction.suggestedCategoryId = categories[i]['id']!;
+              transaction.suggestedCategoryName = categories[i]['name']!;
+              onToggle(transaction.isSelected);
+              Navigator.pop(context);
+            },
           ),
         ),
       ),

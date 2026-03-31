@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../features/accounts/domain/models/account.dart';
 import '../../features/budget/presentation/providers/budget_provider.dart';
-import '../../features/people/presentation/providers/people_provider.dart';
+import '../database/database_providers.dart';
 
 class FinancialBrain {
   final double arsCashBalance;
@@ -37,13 +36,48 @@ final financialBrainProvider = Provider<FinancialBrain>((ref) {
   final totalFixed = fixedBudgets.fold(0.0, (sum, b) => sum + b.limitAmount);
   final peopleTotal = ref.watch(globalPeopleBalanceProvider);
   
-  return FinancialBrain(
-    arsCashBalance: 692932.13,   // Mercado Pago
-    usdCashBalance: 2101.12,    // AstroPay
-    peopleOweMe: peopleTotal,    // $274k aprox
-    mastercardDebt: 1522588.00,  // Resumen Mar
-    visaDebt: 511659.00,        // Resumen Abr
-    upcomingFixedExpenses: totalFixed,
+  final accountsAsync = ref.watch(accountsStreamProvider);
+  
+  return accountsAsync.when(
+    data: (accounts) {
+      final mp = accounts.any((a) => a.id == 'mp_ars') 
+          ? accounts.firstWhere((a) => a.id == 'mp_ars').balance 
+          : 0.0;
+      final ap = accounts.any((a) => a.id == 'ap_usd') 
+          ? accounts.firstWhere((a) => a.id == 'ap_usd').balance 
+          : 0.0;
+      final mc = accounts.any((a) => a.id == 'mc_credit') 
+          ? accounts.firstWhere((a) => a.id == 'mc_credit').pendingStatementAmount 
+          : 0.0;
+      final visa = accounts.any((a) => a.id == 'visa_credit') 
+          ? accounts.firstWhere((a) => a.id == 'visa_credit').pendingStatementAmount 
+          : 0.0;
+
+      return FinancialBrain(
+        arsCashBalance: mp,
+        usdCashBalance: ap,
+        peopleOweMe: peopleTotal,
+        mastercardDebt: mc,
+        visaDebt: visa,
+        upcomingFixedExpenses: totalFixed,
+      );
+    },
+    loading: () => FinancialBrain(
+      arsCashBalance: 0,
+      usdCashBalance: 0,
+      peopleOweMe: peopleTotal,
+      mastercardDebt: 0,
+      visaDebt: 0,
+      upcomingFixedExpenses: totalFixed,
+    ),
+    error: (_, __) => FinancialBrain(
+      arsCashBalance: 0,
+      usdCashBalance: 0,
+      peopleOweMe: peopleTotal,
+      mastercardDebt: 0,
+      visaDebt: 0,
+      upcomingFixedExpenses: totalFixed,
+    ),
   );
 });
 

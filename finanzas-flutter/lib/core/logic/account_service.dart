@@ -101,6 +101,54 @@ class AccountService {
       cardName: cardName,
     );
   }
+
+  /// Adds a new account to the database.
+  Future<void> addAccount({
+    required String name,
+    required String type,
+    required String currencyCode,
+    double initialBalance = 0,
+    String? iconName,
+    int? colorValue,
+  }) async {
+    await db.into(db.accountsTable).insert(AccountsTableCompanion.insert(
+      id: const Uuid().v4(),
+      name: name,
+      type: type,
+      currencyCode: drift.Value(currencyCode),
+      initialBalance: drift.Value(initialBalance),
+      iconName: drift.Value(iconName),
+      colorValue: drift.Value(colorValue),
+    ));
+  }
+
+  /// Updates an existing account.
+  Future<void> updateAccount({
+    required String id,
+    String? name,
+    String? type,
+    String? currencyCode,
+    double? initialBalance,
+  }) async {
+    await (db.update(db.accountsTable)..where((t) => t.id.equals(id))).write(
+      AccountsTableCompanion(
+        name: name != null ? drift.Value(name) : const drift.Value.absent(),
+        type: type != null ? drift.Value(type) : const drift.Value.absent(),
+        currencyCode: currencyCode != null ? drift.Value(currencyCode) : const drift.Value.absent(),
+        initialBalance: initialBalance != null ? drift.Value(initialBalance) : const drift.Value.absent(),
+      ),
+    );
+  }
+
+  /// Deletes an account and its transactions.
+  Future<void> deleteAccount(String id) async {
+    await db.transaction(() async {
+      // 1. Delete transactions
+      await (db.delete(db.transactionsTable)..where((t) => t.accountId.equals(id))).go();
+      // 2. Delete account
+      await (db.delete(db.accountsTable)..where((t) => t.id.equals(id))).go();
+    });
+  }
 }
 
 final accountServiceProvider = Provider<AccountService>((ref) {

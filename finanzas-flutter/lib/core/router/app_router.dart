@@ -12,6 +12,7 @@ import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/wishlist/presentation/pages/wishlist_page.dart';
 import '../../features/accounts/presentation/pages/accounts_page.dart';
+import '../../features/accounts/presentation/pages/account_detail_page.dart';
 import '../shell/app_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -72,6 +73,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/accounts',
         builder: (context, state) => const AccountsPage(),
+      ),
+      GoRoute(
+        path: '/accounts/:accountId',
+        builder: (context, state) => AccountDetailPage(
+          accountId: state.pathParameters['accountId']!,
+        ),
       ),
       GoRoute(
         path: '/settings',

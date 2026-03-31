@@ -26,14 +26,42 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _targetController;
   DateTime? _deadline;
+  IconData _selectedIcon = Icons.flag_rounded;
+  Color _selectedColor = AppTheme.colorTransfer;
+
+  final List<IconData> _availableIcons = [
+    Icons.flag_rounded,
+    Icons.flight_takeoff_rounded,
+    Icons.home_rounded,
+    Icons.directions_car_rounded,
+    Icons.laptop_mac_rounded,
+    Icons.videogame_asset_rounded,
+    Icons.shopping_bag_rounded,
+    Icons.restaurant_rounded,
+    Icons.fitness_center_rounded,
+    Icons.savings_rounded,
+  ];
+
+  final List<Color> _availableColors = [
+    AppTheme.colorTransfer,
+    Colors.orangeAccent,
+    Colors.pinkAccent,
+    Colors.purpleAccent,
+    Colors.cyanAccent,
+    Colors.greenAccent,
+    Colors.amberAccent,
+  ];
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.goalToEdit?.name ?? '');
+    final g = widget.goalToEdit;
+    _nameController = TextEditingController(text: g?.name ?? '');
     _targetController = TextEditingController(
-        text: widget.goalToEdit != null ? widget.goalToEdit!.targetAmount.toInt().toString() : '');
-    _deadline = widget.goalToEdit?.deadline;
+        text: g != null ? g.targetAmount.toInt().toString() : '');
+    _deadline = g?.deadline;
+    _selectedIcon = g?.icon ?? Icons.flag_rounded;
+    _selectedColor = g?.color ?? AppTheme.colorTransfer;
   }
 
   @override
@@ -97,8 +125,15 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
           const SizedBox(height: 24),
           Row(
             children: [
-              Icon(isEditing ? Icons.edit_rounded : Icons.flag_rounded, color: AppTheme.colorTransfer),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _selectedColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_selectedIcon, color: _selectedColor),
+              ),
+              const SizedBox(width: 12),
               Text(
                 isEditing ? 'Editar Objetivo' : 'Nuevo Objetivo',
                 style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
@@ -106,19 +141,67 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
             ],
           ),
           const SizedBox(height: 24),
+          
+          // --- Iconos y Colores ---
+          SizedBox(
+            height: 44,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _availableIcons.length,
+              itemBuilder: (context, index) {
+                final icon = _availableIcons[index];
+                final isSelected = icon == _selectedIcon;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedIcon = icon),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _selectedColor.withValues(alpha: 0.2) : Colors.white.withAlpha(10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSelected ? _selectedColor : Colors.transparent),
+                    ),
+                    child: Icon(icon, color: isSelected ? _selectedColor : Colors.white38, size: 20),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 32,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _availableColors.length,
+              itemBuilder: (context, index) {
+                final color = _availableColors[index];
+                final isSelected = color == _selectedColor;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedColor = color),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+
           TextField(
             controller: _nameController,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Ej. Viaje a Japón',
-              hintStyle: const TextStyle(color: Colors.white38),
               labelText: 'Nombre del Objetivo',
               labelStyle: const TextStyle(color: AppTheme.colorTransfer),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.colorTransfer),
-              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -127,16 +210,10 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
             keyboardType: TextInputType.number,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: 'Ej. 2500000',
               prefixText: '\$ ',
-              hintStyle: const TextStyle(color: Colors.white38),
               labelText: 'Monto a Alcanzar',
               labelStyle: const TextStyle(color: AppTheme.colorTransfer),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.colorTransfer),
-              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -158,7 +235,6 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Fecha Límite', style: TextStyle(color: AppTheme.colorTransfer, fontSize: 12)),
-                        const SizedBox(height: 2),
                         Text(
                           hasDeadline 
                             ? '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}' 
@@ -168,15 +244,6 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
                       ],
                     ),
                   ),
-                  if (hasDeadline && monthsLeft > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.colorTransfer.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text('En $monthsLeft meses', style: TextStyle(color: AppTheme.colorTransfer, fontSize: 12, fontWeight: FontWeight.w600)),
-                    )
                 ],
               ),
             ),
@@ -192,12 +259,7 @@ class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
                   SnackBar(content: Text(isEditing ? 'Objetivo guardado' : 'Objetivo creado')),
                 );
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.colorTransfer,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Text(isEditing ? 'Guardar Cambios' : 'Crear Objetivo', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              child: Text(isEditing ? 'Guardar Cambios' : 'Crear Objetivo'),
             ),
           ),
         ],

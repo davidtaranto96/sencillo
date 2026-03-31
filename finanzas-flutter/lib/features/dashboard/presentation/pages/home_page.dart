@@ -15,6 +15,7 @@ import '../widgets/recent_transactions_list.dart';
 import '../widgets/quick_stats_row.dart';
 import '../widgets/add_transaction_fab.dart';
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
+import '../../../../core/database/database_seeder.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -41,17 +42,48 @@ class HomePage extends ConsumerWidget {
             if (accounts.isEmpty) {
               return Scaffold(
                 body: Center(
-                  child: Text('No hay cuentas', style: GoogleFonts.inter(fontSize: 16, color: cs.onSurfaceVariant)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 64, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                        const SizedBox(height: 24),
+                        Text('No hay cuentas configuradas', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: cs.onSurface)),
+                        const SizedBox(height: 12),
+                        Text('Parece que tu base de datos está vacía. Podés sembrar los datos de prueba del desarrollador para ver cómo funciona.', 
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(fontSize: 14, color: cs.onSurfaceVariant)),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton.icon(
+                            onPressed: () async {
+                              final db = ref.read(databaseProvider);
+                              await DatabaseSeeder(db).clearAndSeedMockData();
+                              // El stream se actualizará automáticamente
+                            },
+                            icon: const Icon(Icons.auto_awesome),
+                            label: const Text('Sembrar datos de prueba'),
+                            style: FilledButton.styleFrom(backgroundColor: AppTheme.colorTransfer),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             }
 
             final arsCash = accounts.where((a) => a.currencyCode == 'ARS' && !a.isCreditCard)
                                    .fold(0.0, (sum, a) => sum + a.balance);
-            final mcAccount = accounts.firstWhere((a) => a.id == 'mc_credit', orElse: () => accounts[0]);
-            final visaAccount = accounts.firstWhere((a) => a.id == 'visa_credit', orElse: () => accounts[0]);
+            final mcAccount = accounts.any((a) => a.id == 'mc_credit') ? accounts.firstWhere((a) => a.id == 'mc_credit') : null;
+            final visaAccount = accounts.any((a) => a.id == 'visa_credit') ? accounts.firstWhere((a) => a.id == 'visa_credit') : null;
 
-            final safeBudget = arsCash - (mcAccount.balance + visaAccount.balance + 317000);
+            // Safe Budget = Cash - (Card Debts + Fixed Expenses Estimate)
+            final cardDebts = (mcAccount?.totalDebt ?? 0) + (visaAccount?.totalDebt ?? 0);
+            final safeBudget = arsCash - cardDebts - 317000;
             
             // Calculate real MonthlyBalance for widgets
             final now = DateTime.now();
@@ -77,11 +109,18 @@ class HomePage extends ConsumerWidget {
                       SliverAppBar(
                         floating: true,
                         backgroundColor: cs.surface,
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        title: Row(
                           children: [
-                            Text('Finanzas', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700)),
-                            Text(monthName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurfaceVariant)),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Finanzas', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700)),
+                                Text(monthName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurfaceVariant)),
+                              ],
+                            ),
+                            const Spacer(),
+                            // Smart Input Toggle
+                            _SmartToggle(),
                           ],
                         ),
                         actions: [
@@ -108,7 +147,7 @@ class HomePage extends ConsumerWidget {
                             ),
                             const SizedBox(height: 12),
 
-                            if (visaAccount.balance > 0)
+                            if (visaAccount != null && visaAccount.balance > 0)
                               CardAlertBanner(
                                 cardName: 'Visa Signature',
                                 amount: visaAccount.balance,
@@ -116,7 +155,7 @@ class HomePage extends ConsumerWidget {
                                 closingDate: DateTime(2026, 3, 20),
                               ),
                             
-                            if (mcAccount.balance > 0)
+                            if (mcAccount != null && mcAccount.balance > 0)
                               CardAlertBanner(
                                 cardName: 'Mastercard Black',
                                 amount: mcAccount.balance,
@@ -226,6 +265,44 @@ class _AlertsBottomSheet {
             SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+}
+class _SmartToggle extends StatefulWidget {
+  @override
+  State<_SmartToggle> createState() => _SmartToggleState();
+}
+
+class _SmartToggleState extends State<_SmartToggle> {
+  bool _isSmart = true;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_isSmart ? Icons.auto_awesome_rounded : Icons.edit_note_rounded, 
+               size: 14, color: _isSmart ? AppTheme.colorTransfer : Colors.white54),
+          const SizedBox(width: 8),
+          Text(_isSmart ? 'IA' : 'Manual', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70)),
+          const SizedBox(width: 4),
+          SizedBox(
+            height: 20,
+            width: 32,
+            child: Switch(
+              value: _isSmart,
+              activeThumbColor: AppTheme.colorTransfer,
+              onChanged: (val) => setState(() => _isSmart = val),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
       ),
     );
   }

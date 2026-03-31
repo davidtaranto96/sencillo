@@ -41,6 +41,8 @@ class _TransactionTile extends StatelessWidget {
     'investment_income': '📈',
     'other_expense': '💸',
     'other_income': '💰',
+    'services': '🔌',
+    'transfer': '🔄',
   };
 
   @override

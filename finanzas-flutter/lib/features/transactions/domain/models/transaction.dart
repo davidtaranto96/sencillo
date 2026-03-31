@@ -28,6 +28,8 @@ class Transaction extends Equatable {
   final double? sharedOtherAmount;   // parte ajena (a recuperar)
   final double? sharedRecovered;     // ya recuperado
   final bool isShared;
+  final bool isExtraordinary;
+
 
   const Transaction({
     required this.id,
@@ -45,6 +47,7 @@ class Transaction extends Equatable {
     this.sharedOtherAmount,
     this.sharedRecovered,
     this.isShared = false,
+    this.isExtraordinary = false,
   });
 
   /// Pendiente a recuperar
@@ -69,5 +72,6 @@ class Transaction extends Equatable {
         personId,
         groupId,
         isShared,
+        isExtraordinary,
       ];
 }

@@ -36,7 +36,7 @@ class BalanceHeroCard extends StatelessWidget {
             cs.surfaceContainerHigh,
           ],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: cs.primary.withValues(alpha: 0.25),
           width: 1.5,
@@ -56,33 +56,17 @@ class BalanceHeroCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: savingsColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${(savingsRate * 100).toStringAsFixed(0)}% ahorro',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: savingsColor,
-                  ),
-                ),
-              ),
+              _buildSavingsBadge(savingsRate, savingsColor),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             formatAmount(safeBudget),
             style: GoogleFonts.inter(
-              fontSize: 38,
+              fontSize: 42,
               fontWeight: FontWeight.w800,
-              color: safeBudget >= 0
-                  ? cs.onSurface
-                  : AppTheme.colorExpense,
+              color: safeBudget >= 0 ? cs.onSurface : AppTheme.colorExpense,
+              letterSpacing: -1,
               height: 1.0,
             ),
           ),
@@ -90,25 +74,84 @@ class BalanceHeroCard extends StatelessWidget {
           AppProgressBar(
             value: savingsRate,
             color: savingsColor,
-            height: 6,
+            height: 8,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          
+          // Fila de Estadísticas Detalladas
           Row(
             children: [
-              _StatChip(
-                label: 'Ingresos',
+              _DetailStat(
+                label: 'Sueldo',
                 value: formatAmount(balance.income, compact: true),
+                icon: Icons.payments_outlined,
                 color: AppTheme.colorIncome,
-                icon: Icons.arrow_downward_rounded,
               ),
-              const SizedBox(width: 12),
-              _StatChip(
-                label: 'Gastos reales',
+              _DetailStat(
+                label: 'Gastado',
                 value: formatAmount(balance.expense, compact: true),
+                icon: Icons.shopping_cart_outlined,
                 color: AppTheme.colorExpense,
-                icon: Icons.arrow_upward_rounded,
+              ),
+              _DetailStat(
+                label: 'Ahorro',
+                value: formatAmount(balance.income - balance.expense, compact: true),
+                icon: Icons.savings_outlined,
+                color: AppTheme.colorTransfer,
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSavingsBadge(double rate, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '${(rate * 100).toStringAsFixed(0)}% ahorro',
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _DetailStat({required this.label, required this.value, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: color.withValues(alpha: 0.7)),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
           ),
         ],
       ),

@@ -106,7 +106,7 @@ class GoalsPage extends ConsumerWidget {
         ),
       ),
       floatingActionButton: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 120),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 12),
         child: FloatingActionButton(
           onPressed: () => AddGoalBottomSheet.show(context),
           backgroundColor: AppTheme.colorTransfer,
@@ -202,23 +202,50 @@ class _GoalCard extends StatelessWidget {
               letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            '${fmt.format(goal.savedAmount)} / ${fmt.format(goal.targetAmount)}',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: goal.color,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Faltan ${fmt.format(goal.remaining)}',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: cs.onSurfaceVariant,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${fmt.format(goal.savedAmount)} / ${fmt.format(goal.targetAmount)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: goal.color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Faltan ${fmt.format(goal.remaining)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Suma de \$50.000 a "${goal.name}" (Mock)')),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: goal.color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.add_rounded, color: goal.color, size: 18),
+                ),
+              ),
+            ],
           ),
         ],
       ),

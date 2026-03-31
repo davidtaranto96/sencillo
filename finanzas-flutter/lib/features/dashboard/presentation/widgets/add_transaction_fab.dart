@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../smart_input/presentation/widgets/ai_input_bottom_sheet.dart';
+import '../../../transactions/presentation/widgets/add_transaction_bottom_sheet.dart';
 
 class AddTransactionFab extends StatelessWidget {
   const AddTransactionFab({super.key});
@@ -14,7 +14,7 @@ class AddTransactionFab extends StatelessWidget {
         bottom: MediaQuery.of(context).padding.bottom + 85,
       ),
       child: FloatingActionButton(
-        onPressed: () => AiInputBottomSheet.show(context),
+        onPressed: () => AddTransactionBottomSheet.show(context),
         backgroundColor: AppTheme.colorTransfer,
         foregroundColor: Colors.white,
         elevation: 8,

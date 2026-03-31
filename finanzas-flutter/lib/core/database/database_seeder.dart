@@ -36,7 +36,7 @@ class DatabaseSeeder {
       currencyCode: const Value('USD'),
       iconName: const Value('payments'),
       colorValue: const Value(0xFF7C6EF7),
-      initialBalance: const Value(2101.12),
+      initialBalance: const Value(0.0), // Starts at 0, filled by salary
     ));
 
     // Mastercard 1.5M (Resumen Mar)
@@ -47,7 +47,8 @@ class DatabaseSeeder {
       currencyCode: const Value('ARS'),
       iconName: const Value('credit_card'),
       colorValue: const Value(0xFF7C6EF7),
-      initialBalance: const Value(1522588.00), 
+      initialBalance: const Value(0.0), 
+      pendingStatementAmount: const Value(1522588.00),
       closingDay: const Value(26),
       dueDay: const Value(8),
     ));
@@ -60,7 +61,8 @@ class DatabaseSeeder {
       currencyCode: const Value('ARS'),
       iconName: const Value('credit_card'),
       colorValue: const Value(0xFFFF5C6E),
-      initialBalance: const Value(511659.00),
+      initialBalance: const Value(0.0),
+      pendingStatementAmount: const Value(511659.00),
       closingDay: const Value(20),
       dueDay: const Value(3),
     ));
@@ -82,7 +84,17 @@ class DatabaseSeeder {
       totalBalance: const Value(141380.67),
     ));
 
-    // 4. Detalle de Gastos (Extraídos de PDF)
+    // 4. Detalle de Gastos y Sueldo
+    await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
+      id: 'salary_usd',
+      title: 'Sueldo Mensual (\$2160 USD)',
+      amount: 2160,
+      type: t.TransactionType.income.name,
+      categoryId: 'cat_salary',
+      accountId: 'ap_usd',
+      date: DateTime(2026, 3, 31),
+    ));
+
     await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
       id: 'tx_pdf_1',
       title: 'Restaurante Sushi',

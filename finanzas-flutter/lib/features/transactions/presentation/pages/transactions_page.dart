@@ -11,11 +11,26 @@ enum _FilterType { all, income, expense, shared }
 
 final _filterProvider = StateProvider<_FilterType>((ref) => _FilterType.all);
 
-class TransactionsPage extends ConsumerWidget {
+class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TransactionsPage> createState() => _TransactionsPageState();
+}
+
+class _TransactionsPageState extends ConsumerState<TransactionsPage> {
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final txsAsync = ref.watch(transactionsStreamProvider);
     final filterValue = ref.watch(_filterProvider);
     final cs = Theme.of(context).colorScheme;
@@ -25,6 +40,10 @@ class TransactionsPage extends ConsumerWidget {
       error: (err, stack) => Scaffold(body: Center(child: Text('Error DB: $err'))),
       data: (allTxs) {
         final filtered = allTxs.where((tx) {
+          final matchesSearch = tx.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                               (tx.note?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+          if (!matchesSearch) return false;
+
           switch (filterValue) {
             case _FilterType.all:
               return true;
@@ -46,11 +65,33 @@ class TransactionsPage extends ConsumerWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Movimientos'),
+            title: _isSearching 
+              ? TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar movimiento...',
+                    border: InputBorder.none,
+                    hintStyle: TextStyle(color: Colors.white38),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                )
+              : const Text('Movimientos'),
             actions: [
               IconButton(
-                icon: Icon(Icons.search_rounded, color: cs.onSurface),
-                onPressed: () {},
+                icon: Icon(_isSearching ? Icons.close_rounded : Icons.search_rounded, color: cs.onSurface),
+                onPressed: () {
+                  setState(() {
+                    if (_isSearching) {
+                      _isSearching = false;
+                      _searchQuery = '';
+                      _searchController.clear();
+                    } else {
+                      _isSearching = true;
+                    }
+                  });
+                },
               ),
               IconButton(
                 icon: Icon(Icons.filter_list_rounded, color: cs.onSurface),
@@ -192,77 +233,131 @@ class _TxRow extends StatelessWidget {
     final displayAmount =
         transaction.isShared ? transaction.realExpense : transaction.amount;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outlineVariant),
+    return Dismissible(
+      key: Key(transaction.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: AppTheme.colorExpense.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.delete_outline_rounded, color: AppTheme.colorExpense),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            alignment: Alignment.center,
-            child: Text(emoji, style: const TextStyle(fontSize: 22)),
+      onDismissed: (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Movimiento eliminado')),
+        );
+      },
+      child: InkWell(
+        onLongPress: () => _showTransactionOptions(context, transaction),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: cs.outlineVariant),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 3),
-                Wrap(
-                  spacing: 4,
+                alignment: Alignment.center,
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (transaction.isShared)
-                      _Tag(
-                          label: 'Compartido',
-                          color: AppTheme.colorWarning),
-                    if (transaction.groupId != null)
-                      _Tag(
-                          label: 'Grupo',
-                          color: AppTheme.colorTransfer),
+                    Text(
+                      transaction.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        if (transaction.isShared)
+                          _Tag(label: 'Compartido', color: AppTheme.colorWarning),
+                        if (transaction.groupId != null)
+                          _Tag(label: 'Grupo', color: AppTheme.colorTransfer),
+                        if (transaction.isExtraordinary)
+                          _Tag(label: 'Extraordinario', color: Colors.purpleAccent),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isIncome ? '+' : '-'}${formatAmount(displayAmount)}',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
               ),
-              if (transaction.isShared && transaction.pendingToRecover > 0)
-                Text(
-                  '↩ ${formatAmount(transaction.pendingToRecover, compact: true)}',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: AppTheme.colorWarning,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${isIncome ? '+' : '-'}${formatAmount(displayAmount)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
                   ),
-                ),
+                  if (transaction.isShared && transaction.pendingToRecover > 0)
+                    Text(
+                      '↩ ${formatAmount(transaction.pendingToRecover, compact: true)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: AppTheme.colorWarning,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransactionOptions(BuildContext context, Transaction tx) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF18181F),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_rounded, color: AppTheme.colorTransfer),
+              title: const Text('Editar Movimiento', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded, color: Colors.white54),
+              title: const Text('Duplicar', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_forever_rounded, color: AppTheme.colorExpense),
+              title: const Text('Eliminar permanentemente', style: TextStyle(color: AppTheme.colorExpense)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
       ),
     );
   }

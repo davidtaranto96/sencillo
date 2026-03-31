@@ -60,7 +60,7 @@ class WishlistPage extends ConsumerWidget {
             },
           ),
           floatingActionButton: Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 120),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 12),
             child: FloatingActionButton(
               onPressed: () => AddWishlistBottomSheet.show(context),
               backgroundColor: AppTheme.colorWarning,
@@ -365,7 +365,9 @@ class _WishlistCard extends ConsumerWidget {
           children: [
             const Icon(Icons.warning_amber_rounded, color: AppTheme.colorWarning),
             const SizedBox(width: 12),
-            const Text('Presupuesto Insuficiente', style: TextStyle(color: Colors.white)),
+            const Expanded(
+              child: Text('Presupuesto Insuficiente', style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
         content: Text(

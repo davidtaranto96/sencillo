@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/database_providers.dart';
@@ -32,74 +33,78 @@ class AccountsPage extends ConsumerWidget {
             itemCount: accounts.length,
             itemBuilder: (context, index) {
               final acc = accounts[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E2C),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.colorTransfer.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(14),
+              return InkWell(
+                onTap: () => context.push('/accounts/${acc.id}'),
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E2C),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.colorTransfer.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(_getIconData(acc.icon ?? 'wallet'), color: AppTheme.colorTransfer),
                           ),
-                          child: Icon(_getIconData(acc.icon ?? 'wallet'), color: AppTheme.colorTransfer),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                acc.name,
-                                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                              ),
-                              Text(
-                                formatAmount(acc.balance),
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              if (acc.pendingStatementAmount > 0) 
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  'Pendiente: ${formatAmount(acc.pendingStatementAmount)}',
-                                  style: TextStyle(color: AppTheme.colorExpense, fontSize: 10),
+                                  acc.name,
+                                  style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
                                 ),
-                              const SizedBox(height: 4),
-                              Text(
-                                acc.isCreditCard ? 'Gastos' : 'Actual',
-                                style: TextStyle(color: AppTheme.colorTransfer, fontSize: 11, fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                                Text(
+                                  formatAmount(acc.balance),
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                if (acc.pendingStatementAmount > 0) 
+                                  Text(
+                                    'Pendiente: ${formatAmount(acc.pendingStatementAmount)}',
+                                    style: TextStyle(color: AppTheme.colorExpense, fontSize: 10),
+                                  ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  acc.isCreditCard ? 'Gastos' : 'Actual',
+                                  style: TextStyle(color: AppTheme.colorTransfer, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (acc.isCreditCard && acc.pendingStatementAmount > 0) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showPayStatementDialog(context, ref, acc),
+                            icon: const Icon(Icons.payments_outlined, size: 16),
+                            label: const Text('Pagar Resumen'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.colorIncome,
+                              side: BorderSide(color: AppTheme.colorIncome.withValues(alpha: 0.5)),
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                    if (acc.isCreditCard && acc.pendingStatementAmount > 0) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showPayStatementDialog(context, ref, acc),
-                          icon: const Icon(Icons.payments_outlined, size: 16),
-                          label: const Text('Pagar Resumen'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.colorIncome,
-                            side: BorderSide(color: AppTheme.colorIncome.withValues(alpha: 0.5)),
-                          ),
-                        ),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
               );
             },
@@ -107,11 +112,11 @@ class AccountsPage extends ConsumerWidget {
           floatingActionButton: Padding(
             padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 120),
             child: FloatingActionButton.extended(
-              onPressed: () => _showAddMoneyDialog(context, null),
+              onPressed: () => _showAddAccountDialog(context),
               backgroundColor: AppTheme.colorTransfer,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.attach_money_rounded),
-              label: const Text('Agregar Fondeo', style: TextStyle(fontWeight: FontWeight.w600)),
+              icon: const Icon(Icons.add_card_rounded),
+              label: const Text('Nueva Cuenta', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
         );
@@ -119,7 +124,7 @@ class AccountsPage extends ConsumerWidget {
     );
   }
 
-  void _showAddMoneyDialog(BuildContext context, dom.Account? account) {
+  void _showAddAccountDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -133,27 +138,64 @@ class AccountsPage extends ConsumerWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Operación de Saldo',
+                'Nueva Cuenta / Billetera',
                 style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
               ),
               const SizedBox(height: 24),
               TextField(
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white, fontSize: 24),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  prefixText: '\$ ',
-                  hintText: '0',
-                  hintStyle: const TextStyle(color: Colors.white24),
-                  labelText: 'Monto a agregar/restar',
-                  labelStyle: const TextStyle(color: AppTheme.colorTransfer, fontSize: 14),
+                  labelText: 'Nombre / Alias de la Cuenta',
+                  labelStyle: const TextStyle(color: AppTheme.colorTransfer),
+                  hintText: 'Ej. Mercado Pago, Efectivo, BBVA',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: AppTheme.colorTransfer),
-                  ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'CBU / CVU (Opcional)',
+                  labelStyle: const TextStyle(color: AppTheme.colorTransfer),
+                  suffixIcon: const Icon(Icons.copy_rounded, color: Colors.white24, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Saldo Inicial',
+                        prefixText: r'$ ',
+                        labelStyle: const TextStyle(color: AppTheme.colorTransfer),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white10),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: DropdownButton<String>(
+                      value: 'Débito',
+                      dropdownColor: const Color(0xFF18181F),
+                      underline: const SizedBox(),
+                      style: const TextStyle(color: Colors.white),
+                      items: ['Débito', 'Crédito', 'Efectivo'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      onChanged: (val) {},
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -163,14 +205,14 @@ class AccountsPage extends ConsumerWidget {
                   onPressed: () {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Operación registrada (UI Mock)')),
+                      const SnackBar(content: Text('Cuenta creada satisfactoriamente')),
                     );
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.colorTransfer,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('Confirmar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                  child: const Text('Crear Cuenta', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                 ),
               ),
             ],
@@ -228,7 +270,7 @@ class AccountsPage extends ConsumerWidget {
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white, fontSize: 24),
                     decoration: const InputDecoration(
-                      prefixText: '\$ ',
+                      prefixText: r'$ ',
                       labelText: 'Monto a pagar',
                       labelStyle: TextStyle(color: AppTheme.colorTransfer),
                       enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),

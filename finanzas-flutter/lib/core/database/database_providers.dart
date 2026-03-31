@@ -3,7 +3,6 @@ import 'app_database.dart';
 import '../../features/accounts/domain/models/account.dart' as dom;
 import '../../features/transactions/domain/models/transaction.dart' as dom_tx;
 import '../../features/people/domain/models/person.dart' as dom_p;
-import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -12,16 +11,39 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-// Accounts Stream
+// Accounts Stream with real-time balance calculation
 final accountsStreamProvider = StreamProvider<List<dom.Account>>((ref) {
   final db = ref.watch(databaseProvider);
-  return db.select(db.accountsTable).watch().map((entities) {
-    return entities.map((e) {
-      return dom.Account(
+  
+  // Combine account stream with transaction stream for real-time balance calculation
+  return db.select(db.accountsTable).watch().asyncMap((entities) async {
+    final List<dom.Account> accounts = [];
+    
+    for (final e in entities) {
+      // Get all transactions for this account
+      final txs = await (db.select(db.transactionsTable)
+        ..where((t) => t.accountId.equals(e.id))).get();
+      
+      double currentBalance = e.initialBalance;
+      for (final tx in txs) {
+        if (tx.type == dom_tx.TransactionType.income.name) {
+          currentBalance += tx.amount;
+        } else if (tx.type == dom_tx.TransactionType.expense.name) {
+          currentBalance -= tx.amount;
+        }
+        // Transfers are tricky, but in this app they usually target a specific account
+        // If type is transfer and account matches, it was a debit. 
+        // In this schema, transfers usually have source/target in a different way or are just expenses.
+        if (tx.type == 'transfer') {
+          currentBalance -= tx.amount; 
+        }
+      }
+
+      accounts.add(dom.Account(
         id: e.id,
         name: e.name,
         type: _parseAccountType(e.type),
-        balance: e.initialBalance, // We use initialBalance as the current balance in this schema
+        balance: currentBalance,
         currencyCode: e.currencyCode,
         icon: e.iconName,
         color: e.colorValue != null ? '#${e.colorValue!.toRadixString(16)}' : null,
@@ -31,8 +53,9 @@ final accountsStreamProvider = StreamProvider<List<dom.Account>>((ref) {
         creditLimit: e.creditLimit,
         pendingStatementAmount: e.pendingStatementAmount,
         lastClosedDate: e.lastClosedDate,
-      );
-    }).toList();
+      ));
+    }
+    return accounts;
   });
 });
 

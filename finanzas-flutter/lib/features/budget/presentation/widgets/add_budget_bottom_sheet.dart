@@ -115,7 +115,7 @@ class _AddBudgetBottomSheetState extends State<AddBudgetBottomSheet> {
             subtitle: const Text('Para alquiler, servicios, seguros, etc.', style: TextStyle(color: Colors.white54, fontSize: 13)),
             value: _isFixed,
             onChanged: (val) => setState(() => _isFixed = val),
-            activeColor: AppTheme.colorTransfer,
+            activeThumbColor: AppTheme.colorTransfer,
             contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 32),

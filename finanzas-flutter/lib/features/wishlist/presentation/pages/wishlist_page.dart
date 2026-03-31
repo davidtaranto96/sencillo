@@ -17,7 +17,6 @@ class WishlistPage extends ConsumerWidget {
     final items = ref.watch(mockWishlistProvider);
     final hourlyRate = ref.watch(mockHourlyRateProvider);
     final safeBudget = ref.watch(safeBudgetProvider);
-    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -355,6 +354,7 @@ class _UrlChip extends StatelessWidget {
         if (uri != null && await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else {
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No se pudo abrir el link')),
           );

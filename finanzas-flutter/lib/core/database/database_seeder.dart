@@ -22,7 +22,7 @@ class DatabaseSeeder {
       id: 'a1',
       name: 'Efectivo',
       iconName: 'wallet',
-      colorValue: Colors.green.value,
+      colorValue: Colors.green.toARGB32(),
       initialBalance: const Value(25000),
     ));
 
@@ -30,7 +30,7 @@ class DatabaseSeeder {
       id: 'a2',
       name: 'Galicia',
       iconName: 'account_balance',
-      colorValue: Colors.orange.value,
+      colorValue: Colors.orange.toARGB32(),
       initialBalance: const Value(810000),
     ));
 
@@ -39,14 +39,14 @@ class DatabaseSeeder {
       id: 'p1',
       name: 'Sofía',
       alias: const Value('Sofi'),
-      colorValue: Colors.pinkAccent.value,
+      colorValue: Colors.pinkAccent.toARGB32(),
       totalBalance: const Value(45000), // Me debe
     ));
     await db.into(db.personsTable).insert(PersonsTableCompanion.insert(
       id: 'p2',
       name: 'Juan Perez',
       alias: const Value('Juancito'),
-      colorValue: Colors.blueAccent.value,
+      colorValue: Colors.blueAccent.toARGB32(),
       totalBalance: const Value(-15000), // Le debo
     ));
 

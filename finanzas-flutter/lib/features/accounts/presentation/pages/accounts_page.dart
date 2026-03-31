@@ -11,7 +11,6 @@ class AccountsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
     final accounts = ref.watch(mockAccountsProvider);
 
     return Scaffold(

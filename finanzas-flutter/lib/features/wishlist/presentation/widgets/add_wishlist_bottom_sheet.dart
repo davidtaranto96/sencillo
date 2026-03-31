@@ -55,7 +55,6 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -195,7 +194,7 @@ class _AddWishlistBottomSheetState extends ConsumerState<AddWishlistBottomSheet>
             title: const Text('Tiene promo/descuento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
             value: _hasPromo,
             onChanged: (val) => setState(() => _hasPromo = val),
-            activeColor: AppTheme.colorWarning,
+            activeThumbColor: AppTheme.colorWarning,
             contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 32),

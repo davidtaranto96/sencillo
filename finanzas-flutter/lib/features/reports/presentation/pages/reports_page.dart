@@ -23,7 +23,6 @@ class _ReportsPageState extends State<ReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final fmt = NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 1, locale: 'es_AR');
     final monthName = DateFormat('MMMM yyyy', 'es').format(_selectedMonth);
 

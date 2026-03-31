@@ -25,7 +25,7 @@ class _AiInputBottomSheetState extends State<AiInputBottomSheet> {
   // Simulated parsing state
   bool _isAnalyzing = false;
   bool _isListeningVoice = false;
-  List<String> _detectedTags = [];
+  final List<String> _detectedTags = [];
 
   void _onTextChanged(String text) {
     // Very simple mockup of AI parsing logic

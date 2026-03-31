@@ -119,14 +119,12 @@ class HomePage extends ConsumerWidget {
                               ],
                             ),
                             const Spacer(),
-                            // Smart Input Toggle
-                            _SmartToggle(),
                           ],
                         ),
                         actions: [
                           IconButton(
                             icon: const Icon(Icons.notifications_outlined),
-                            onPressed: () => _AlertsBottomSheet.show(context),
+                            onPressed: () {}, // Temporarily disabled, alerts are now in the home list
                           ),
                           IconButton(
                             icon: const Icon(Icons.settings_outlined),
@@ -147,21 +145,8 @@ class HomePage extends ConsumerWidget {
                             ),
                             const SizedBox(height: 12),
 
-                            if (visaAccount != null && visaAccount.balance > 0)
-                              CardAlertBanner(
-                                cardName: 'Visa Signature',
-                                amount: visaAccount.balance,
-                                dueDate: DateTime(2026, 4, 3),
-                                closingDate: DateTime(2026, 3, 20),
-                              ),
-                            
-                            if (mcAccount != null && mcAccount.balance > 0)
-                              CardAlertBanner(
-                                cardName: 'Mastercard Black',
-                                amount: mcAccount.balance,
-                                dueDate: DateTime(2026, 4, 8),
-                                closingDate: DateTime(2026, 3, 26),
-                              ),
+                            const SizedBox(height: 12),
+                            const _AlertsSection(),
                             
                             const SizedBox(height: 12),
                             QuickStatsRow(balance: monthlyStats),
@@ -248,62 +233,64 @@ class _SyncLoadingOverlay extends StatelessWidget {
   }
 }
 
-class _AlertsBottomSheet {
-  static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E1E2C),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => const Padding(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Notificaciones', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            Text('No hay alertas nuevas.', style: TextStyle(color: Colors.white38)),
-            SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-}
-class _SmartToggle extends StatefulWidget {
-  @override
-  State<_SmartToggle> createState() => _SmartToggleState();
-}
 
-class _SmartToggleState extends State<_SmartToggle> {
-  bool _isSmart = true;
+class _AlertsSection extends ConsumerWidget {
+  const _AlertsSection();
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_isSmart ? Icons.auto_awesome_rounded : Icons.edit_note_rounded, 
-               size: 14, color: _isSmart ? AppTheme.colorTransfer : Colors.white54),
-          const SizedBox(width: 8),
-          Text(_isSmart ? 'IA' : 'Manual', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70)),
-          const SizedBox(width: 4),
-          SizedBox(
-            height: 20,
-            width: 32,
-            child: Switch(
-              value: _isSmart,
-              activeThumbColor: AppTheme.colorTransfer,
-              onChanged: (val) => setState(() => _isSmart = val),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accounts = ref.watch(accountsStreamProvider).value ?? [];
+    final creditCards = accounts.where((a) => a.isCreditCard).toList();
+    final now = DateTime.now();
+    final alerts = <Widget>[];
+
+    for (final card in creditCards) {
+      if (card.closingDay != null) {
+        final closingDate = DateTime(now.year, now.month, card.closingDay!);
+        final diff = closingDate.difference(now).inDays;
+        if (diff >= 0 && diff <= 5) {
+          alerts.add(CardAlertBanner(
+            cardName: card.name,
+            amount: card.balance,
+            closingDate: closingDate,
+            dueDate: DateTime(now.year, now.month + 1, card.dueDay ?? 1),
+            isClosingSoon: true,
+          ));
+        }
+      }
+      
+      if (card.pendingStatementAmount > 0) {
+        alerts.add(CardAlertBanner(
+          cardName: card.name,
+          amount: card.pendingStatementAmount,
+          dueDate: DateTime(now.year, now.month, card.dueDay ?? 1),
+          closingDate: DateTime(now.year, now.month - 1, card.closingDay ?? 1),
+          isClosingSoon: false,
+        ));
+      }
+    }
+
+    if (alerts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Alertas de vencimiento',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
             ),
           ),
-        ],
-      ),
+        ),
+        ...alerts.map((a) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: a,
+        )),
+      ],
     );
   }
 }

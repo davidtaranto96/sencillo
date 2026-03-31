@@ -1,0 +1,21 @@
+Analyzing finanzas-flutter...                                   
+
+warning - The left operand can't be null, so the right operand is never executed - lib\core\database\database_providers.dart:98:44 - dead_null_aware_expression
+warning - Unused import: 'package:flutter/material.dart' - lib\core\database\database_seeder.dart:2:8 - unused_import
+warning - Unused import: '../../features/accounts/domain/models/account.dart' - lib\core\logic\month_closure_service.dart:4:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\core\logic\month_closure_service.dart:38:5 - avoid_print
+   info - Missing type annotation - lib\core\shell\app_shell.dart:149:19 - strict_top_level_inference
+   info - Missing type annotation - lib\core\shell\app_shell.dart:150:17 - strict_top_level_inference
+warning - Unused import: '../../../../core/utils/format_utils.dart' - lib\features\budget\presentation\widgets\add_budget_bottom_sheet.dart:6:8 - unused_import
+warning - Unused import: '../../../../core/utils/format_utils.dart' - lib\features\dashboard\presentation\pages\home_page.dart:9:8 - unused_import
+warning - The declaration '_StatChip' isn't referenced - lib\features\dashboard\presentation\widgets\balance_hero_card.dart:162:7 - unused_element
+warning - The value of the local variable 'monthsLeft' isn't used - lib\features\goals\presentation\widgets\add_goal_bottom_sheet.dart:107:11 - unused_local_variable
+warning - Unused import: 'package:uuid/uuid.dart' - lib\features\people\presentation\pages\add_expense_page.dart:5:8 - unused_import
+   info - The private field _selectedDate could be 'final' - lib\features\people\presentation\pages\add_expense_page.dart:29:12 - prefer_final_fields
+   info - Don't use 'BuildContext's across async gaps - lib\features\people\presentation\pages\add_expense_page.dart:80:28 - use_build_context_synchronously
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\features\transactions\presentation\widgets\add_transaction_bottom_sheet.dart:408:15 - deprecated_member_use
+warning - Unused import: '../../../../core/utils/format_utils.dart' - lib\features\wishlist\presentation\pages\wishlist_page.dart:10:8 - unused_import
+warning - Unused import: '../../../accounts/domain/models/account.dart' - lib\features\wishlist\presentation\pages\wishlist_page.dart:14:8 - unused_import
+warning - Unused import: 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart' - lib\main.dart:5:8 - unused_import
+
+17 issues found. (ran in 5.8s)

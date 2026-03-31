@@ -4,9 +4,10 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo run:android",
+    "android": "node scripts/setup-android.js && expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "setup-android": "node scripts/setup-android.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

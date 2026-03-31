@@ -12,6 +12,8 @@ import '../widgets/accounts_row.dart';
 import '../widgets/recent_transactions_list.dart';
 import '../widgets/add_transaction_fab.dart';
 import '../../../alerts/presentation/widgets/alerts_bottom_sheet.dart';
+import '../../../../core/logic/financial_logic.dart';
+import '../widgets/card_alert_banner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +23,7 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balance = ref.watch(monthlyBalanceProvider);
+    final brain = ref.watch(financialBrainProvider);
     final accounts = ref.watch(mockAccountsProvider);
     final txs = ref.watch(mockTransactionsProvider);
     final cs = Theme.of(context).colorScheme;
@@ -80,8 +83,20 @@ class HomePage extends ConsumerWidget {
               delegate: SliverChildListDelegate([
                 const SizedBox(height: 8),
 
-                // Hero: balance del mes
-                BalanceHeroCard(balance: balance),
+                // Hero: balance del mes (Presupuesto Seguro)
+                BalanceHeroCard(
+                  balance: balance,
+                  safeBudget: brain.safeBudgetARS,
+                ),
+                const SizedBox(height: 12),
+
+                // Alerta de Tarjeta (Real data from PDF)
+                CardAlertBanner(
+                  cardName: 'Mastercard',
+                  amount: 79987.00,
+                  dueDate: DateTime(2026, 4, 8),
+                  closingDate: DateTime(2026, 3, 26),
+                ),
                 const SizedBox(height: 12),
 
                 // Stats rápidos

@@ -7,7 +7,13 @@ import '../../../../shared/widgets/app_progress_bar.dart';
 
 class BalanceHeroCard extends StatelessWidget {
   final MonthlyBalance balance;
-  const BalanceHeroCard({super.key, required this.balance});
+  final double safeBudget;
+
+  const BalanceHeroCard({
+    super.key, 
+    required this.balance,
+    required this.safeBudget,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +49,11 @@ class BalanceHeroCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Balance del mes',
+                'Presupuesto Libre Seguro',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: cs.onSurfaceVariant,
                       letterSpacing: 0.5,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
               Container(
@@ -69,11 +76,11 @@ class BalanceHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            formatAmount(balance.balance),
+            formatAmount(safeBudget),
             style: GoogleFonts.inter(
               fontSize: 38,
               fontWeight: FontWeight.w800,
-              color: balance.balance >= 0
+              color: safeBudget >= 0
                   ? cs.onSurface
                   : AppTheme.colorExpense,
               height: 1.0,

@@ -31,26 +31,13 @@ class $AccountsTableTable extends AccountsTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _iconNameMeta = const VerificationMeta(
-    'iconName',
-  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
-  late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
-    'icon_name',
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _colorValueMeta = const VerificationMeta(
-    'colorValue',
-  );
-  @override
-  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
-    'color_value',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
   static const VerificationMeta _initialBalanceMeta = const VerificationMeta(
@@ -65,13 +52,103 @@ class $AccountsTableTable extends AccountsTable
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 3,
+      maxTextLength: 3,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('ARS'),
+  );
+  static const VerificationMeta _iconNameMeta = const VerificationMeta(
+    'iconName',
+  );
+  @override
+  late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
+    'icon_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _creditLimitMeta = const VerificationMeta(
+    'creditLimit',
+  );
+  @override
+  late final GeneratedColumn<double> creditLimit = GeneratedColumn<double>(
+    'credit_limit',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _closingDayMeta = const VerificationMeta(
+    'closingDay',
+  );
+  @override
+  late final GeneratedColumn<int> closingDay = GeneratedColumn<int>(
+    'closing_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueDayMeta = const VerificationMeta('dueDay');
+  @override
+  late final GeneratedColumn<int> dueDay = GeneratedColumn<int>(
+    'due_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     name,
+    type,
+    initialBalance,
+    currencyCode,
     iconName,
     colorValue,
-    initialBalance,
+    isDefault,
+    creditLimit,
+    closingDay,
+    dueDay,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -98,21 +175,13 @@ class $AccountsTableTable extends AccountsTable
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    if (data.containsKey('icon_name')) {
+    if (data.containsKey('type')) {
       context.handle(
-        _iconNameMeta,
-        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
       );
     } else if (isInserting) {
-      context.missing(_iconNameMeta);
-    }
-    if (data.containsKey('color_value')) {
-      context.handle(
-        _colorValueMeta,
-        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_colorValueMeta);
+      context.missing(_typeMeta);
     }
     if (data.containsKey('initial_balance')) {
       context.handle(
@@ -121,6 +190,54 @@ class $AccountsTableTable extends AccountsTable
           data['initial_balance']!,
           _initialBalanceMeta,
         ),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('icon_name')) {
+      context.handle(
+        _iconNameMeta,
+        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('credit_limit')) {
+      context.handle(
+        _creditLimitMeta,
+        creditLimit.isAcceptableOrUnknown(
+          data['credit_limit']!,
+          _creditLimitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('closing_day')) {
+      context.handle(
+        _closingDayMeta,
+        closingDay.isAcceptableOrUnknown(data['closing_day']!, _closingDayMeta),
+      );
+    }
+    if (data.containsKey('due_day')) {
+      context.handle(
+        _dueDayMeta,
+        dueDay.isAcceptableOrUnknown(data['due_day']!, _dueDayMeta),
       );
     }
     return context;
@@ -140,18 +257,42 @@ class $AccountsTableTable extends AccountsTable
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
-      iconName: attachedDatabase.typeMapping.read(
+      type: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}icon_name'],
-      )!,
-      colorValue: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}color_value'],
+        data['${effectivePrefix}type'],
       )!,
       initialBalance: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}initial_balance'],
       )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      iconName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_name'],
+      ),
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      ),
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      creditLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}credit_limit'],
+      ),
+      closingDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}closing_day'],
+      ),
+      dueDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}due_day'],
+      ),
     );
   }
 
@@ -164,24 +305,52 @@ class $AccountsTableTable extends AccountsTable
 class AccountEntity extends DataClass implements Insertable<AccountEntity> {
   final String id;
   final String name;
-  final String iconName;
-  final int colorValue;
+  final String type;
   final double initialBalance;
+  final String currencyCode;
+  final String? iconName;
+  final int? colorValue;
+  final bool isDefault;
+  final double? creditLimit;
+  final int? closingDay;
+  final int? dueDay;
   const AccountEntity({
     required this.id,
     required this.name,
-    required this.iconName,
-    required this.colorValue,
+    required this.type,
     required this.initialBalance,
+    required this.currencyCode,
+    this.iconName,
+    this.colorValue,
+    required this.isDefault,
+    this.creditLimit,
+    this.closingDay,
+    this.dueDay,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
-    map['icon_name'] = Variable<String>(iconName);
-    map['color_value'] = Variable<int>(colorValue);
+    map['type'] = Variable<String>(type);
     map['initial_balance'] = Variable<double>(initialBalance);
+    map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || iconName != null) {
+      map['icon_name'] = Variable<String>(iconName);
+    }
+    if (!nullToAbsent || colorValue != null) {
+      map['color_value'] = Variable<int>(colorValue);
+    }
+    map['is_default'] = Variable<bool>(isDefault);
+    if (!nullToAbsent || creditLimit != null) {
+      map['credit_limit'] = Variable<double>(creditLimit);
+    }
+    if (!nullToAbsent || closingDay != null) {
+      map['closing_day'] = Variable<int>(closingDay);
+    }
+    if (!nullToAbsent || dueDay != null) {
+      map['due_day'] = Variable<int>(dueDay);
+    }
     return map;
   }
 
@@ -189,9 +358,25 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     return AccountsTableCompanion(
       id: Value(id),
       name: Value(name),
-      iconName: Value(iconName),
-      colorValue: Value(colorValue),
+      type: Value(type),
       initialBalance: Value(initialBalance),
+      currencyCode: Value(currencyCode),
+      iconName: iconName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconName),
+      colorValue: colorValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(colorValue),
+      isDefault: Value(isDefault),
+      creditLimit: creditLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(creditLimit),
+      closingDay: closingDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closingDay),
+      dueDay: dueDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDay),
     );
   }
 
@@ -203,9 +388,15 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     return AccountEntity(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      iconName: serializer.fromJson<String>(json['iconName']),
-      colorValue: serializer.fromJson<int>(json['colorValue']),
+      type: serializer.fromJson<String>(json['type']),
       initialBalance: serializer.fromJson<double>(json['initialBalance']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      iconName: serializer.fromJson<String?>(json['iconName']),
+      colorValue: serializer.fromJson<int?>(json['colorValue']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      creditLimit: serializer.fromJson<double?>(json['creditLimit']),
+      closingDay: serializer.fromJson<int?>(json['closingDay']),
+      dueDay: serializer.fromJson<int?>(json['dueDay']),
     );
   }
   @override
@@ -214,36 +405,66 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
-      'iconName': serializer.toJson<String>(iconName),
-      'colorValue': serializer.toJson<int>(colorValue),
+      'type': serializer.toJson<String>(type),
       'initialBalance': serializer.toJson<double>(initialBalance),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'iconName': serializer.toJson<String?>(iconName),
+      'colorValue': serializer.toJson<int?>(colorValue),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'creditLimit': serializer.toJson<double?>(creditLimit),
+      'closingDay': serializer.toJson<int?>(closingDay),
+      'dueDay': serializer.toJson<int?>(dueDay),
     };
   }
 
   AccountEntity copyWith({
     String? id,
     String? name,
-    String? iconName,
-    int? colorValue,
+    String? type,
     double? initialBalance,
+    String? currencyCode,
+    Value<String?> iconName = const Value.absent(),
+    Value<int?> colorValue = const Value.absent(),
+    bool? isDefault,
+    Value<double?> creditLimit = const Value.absent(),
+    Value<int?> closingDay = const Value.absent(),
+    Value<int?> dueDay = const Value.absent(),
   }) => AccountEntity(
     id: id ?? this.id,
     name: name ?? this.name,
-    iconName: iconName ?? this.iconName,
-    colorValue: colorValue ?? this.colorValue,
+    type: type ?? this.type,
     initialBalance: initialBalance ?? this.initialBalance,
+    currencyCode: currencyCode ?? this.currencyCode,
+    iconName: iconName.present ? iconName.value : this.iconName,
+    colorValue: colorValue.present ? colorValue.value : this.colorValue,
+    isDefault: isDefault ?? this.isDefault,
+    creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
+    closingDay: closingDay.present ? closingDay.value : this.closingDay,
+    dueDay: dueDay.present ? dueDay.value : this.dueDay,
   );
   AccountEntity copyWithCompanion(AccountsTableCompanion data) {
     return AccountEntity(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      initialBalance: data.initialBalance.present
+          ? data.initialBalance.value
+          : this.initialBalance,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
       iconName: data.iconName.present ? data.iconName.value : this.iconName,
       colorValue: data.colorValue.present
           ? data.colorValue.value
           : this.colorValue,
-      initialBalance: data.initialBalance.present
-          ? data.initialBalance.value
-          : this.initialBalance,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      creditLimit: data.creditLimit.present
+          ? data.creditLimit.value
+          : this.creditLimit,
+      closingDay: data.closingDay.present
+          ? data.closingDay.value
+          : this.closingDay,
+      dueDay: data.dueDay.present ? data.dueDay.value : this.dueDay,
     );
   }
 
@@ -252,67 +473,119 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     return (StringBuffer('AccountEntity(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('initialBalance: $initialBalance, ')
+          ..write('currencyCode: $currencyCode, ')
           ..write('iconName: $iconName, ')
           ..write('colorValue: $colorValue, ')
-          ..write('initialBalance: $initialBalance')
+          ..write('isDefault: $isDefault, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('closingDay: $closingDay, ')
+          ..write('dueDay: $dueDay')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, iconName, colorValue, initialBalance);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    type,
+    initialBalance,
+    currencyCode,
+    iconName,
+    colorValue,
+    isDefault,
+    creditLimit,
+    closingDay,
+    dueDay,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AccountEntity &&
           other.id == this.id &&
           other.name == this.name &&
+          other.type == this.type &&
+          other.initialBalance == this.initialBalance &&
+          other.currencyCode == this.currencyCode &&
           other.iconName == this.iconName &&
           other.colorValue == this.colorValue &&
-          other.initialBalance == this.initialBalance);
+          other.isDefault == this.isDefault &&
+          other.creditLimit == this.creditLimit &&
+          other.closingDay == this.closingDay &&
+          other.dueDay == this.dueDay);
 }
 
 class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
   final Value<String> id;
   final Value<String> name;
-  final Value<String> iconName;
-  final Value<int> colorValue;
+  final Value<String> type;
   final Value<double> initialBalance;
+  final Value<String> currencyCode;
+  final Value<String?> iconName;
+  final Value<int?> colorValue;
+  final Value<bool> isDefault;
+  final Value<double?> creditLimit;
+  final Value<int?> closingDay;
+  final Value<int?> dueDay;
   final Value<int> rowid;
   const AccountsTableCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.initialBalance = const Value.absent(),
+    this.currencyCode = const Value.absent(),
     this.iconName = const Value.absent(),
     this.colorValue = const Value.absent(),
-    this.initialBalance = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.closingDay = const Value.absent(),
+    this.dueDay = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsTableCompanion.insert({
     required String id,
     required String name,
-    required String iconName,
-    required int colorValue,
+    required String type,
     this.initialBalance = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.iconName = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.closingDay = const Value.absent(),
+    this.dueDay = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
-       iconName = Value(iconName),
-       colorValue = Value(colorValue);
+       type = Value(type);
   static Insertable<AccountEntity> custom({
     Expression<String>? id,
     Expression<String>? name,
+    Expression<String>? type,
+    Expression<double>? initialBalance,
+    Expression<String>? currencyCode,
     Expression<String>? iconName,
     Expression<int>? colorValue,
-    Expression<double>? initialBalance,
+    Expression<bool>? isDefault,
+    Expression<double>? creditLimit,
+    Expression<int>? closingDay,
+    Expression<int>? dueDay,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (initialBalance != null) 'initial_balance': initialBalance,
+      if (currencyCode != null) 'currency_code': currencyCode,
       if (iconName != null) 'icon_name': iconName,
       if (colorValue != null) 'color_value': colorValue,
-      if (initialBalance != null) 'initial_balance': initialBalance,
+      if (isDefault != null) 'is_default': isDefault,
+      if (creditLimit != null) 'credit_limit': creditLimit,
+      if (closingDay != null) 'closing_day': closingDay,
+      if (dueDay != null) 'due_day': dueDay,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -320,17 +593,29 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
   AccountsTableCompanion copyWith({
     Value<String>? id,
     Value<String>? name,
-    Value<String>? iconName,
-    Value<int>? colorValue,
+    Value<String>? type,
     Value<double>? initialBalance,
+    Value<String>? currencyCode,
+    Value<String?>? iconName,
+    Value<int?>? colorValue,
+    Value<bool>? isDefault,
+    Value<double?>? creditLimit,
+    Value<int?>? closingDay,
+    Value<int?>? dueDay,
     Value<int>? rowid,
   }) {
     return AccountsTableCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      type: type ?? this.type,
+      initialBalance: initialBalance ?? this.initialBalance,
+      currencyCode: currencyCode ?? this.currencyCode,
       iconName: iconName ?? this.iconName,
       colorValue: colorValue ?? this.colorValue,
-      initialBalance: initialBalance ?? this.initialBalance,
+      isDefault: isDefault ?? this.isDefault,
+      creditLimit: creditLimit ?? this.creditLimit,
+      closingDay: closingDay ?? this.closingDay,
+      dueDay: dueDay ?? this.dueDay,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -344,14 +629,32 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (initialBalance.present) {
+      map['initial_balance'] = Variable<double>(initialBalance.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
     if (iconName.present) {
       map['icon_name'] = Variable<String>(iconName.value);
     }
     if (colorValue.present) {
       map['color_value'] = Variable<int>(colorValue.value);
     }
-    if (initialBalance.present) {
-      map['initial_balance'] = Variable<double>(initialBalance.value);
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (creditLimit.present) {
+      map['credit_limit'] = Variable<double>(creditLimit.value);
+    }
+    if (closingDay.present) {
+      map['closing_day'] = Variable<int>(closingDay.value);
+    }
+    if (dueDay.present) {
+      map['due_day'] = Variable<int>(dueDay.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -364,9 +667,15 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     return (StringBuffer('AccountsTableCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('initialBalance: $initialBalance, ')
+          ..write('currencyCode: $currencyCode, ')
           ..write('iconName: $iconName, ')
           ..write('colorValue: $colorValue, ')
-          ..write('initialBalance: $initialBalance, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('closingDay: $closingDay, ')
+          ..write('dueDay: $dueDay, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3158,18 +3467,30 @@ typedef $$AccountsTableTableCreateCompanionBuilder =
     AccountsTableCompanion Function({
       required String id,
       required String name,
-      required String iconName,
-      required int colorValue,
+      required String type,
       Value<double> initialBalance,
+      Value<String> currencyCode,
+      Value<String?> iconName,
+      Value<int?> colorValue,
+      Value<bool> isDefault,
+      Value<double?> creditLimit,
+      Value<int?> closingDay,
+      Value<int?> dueDay,
       Value<int> rowid,
     });
 typedef $$AccountsTableTableUpdateCompanionBuilder =
     AccountsTableCompanion Function({
       Value<String> id,
       Value<String> name,
-      Value<String> iconName,
-      Value<int> colorValue,
+      Value<String> type,
       Value<double> initialBalance,
+      Value<String> currencyCode,
+      Value<String?> iconName,
+      Value<int?> colorValue,
+      Value<bool> isDefault,
+      Value<double?> creditLimit,
+      Value<int?> closingDay,
+      Value<int?> dueDay,
       Value<int> rowid,
     });
 
@@ -3192,6 +3513,21 @@ class $$AccountsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get initialBalance => $composableBuilder(
+    column: $table.initialBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get iconName => $composableBuilder(
     column: $table.iconName,
     builder: (column) => ColumnFilters(column),
@@ -3202,8 +3538,23 @@ class $$AccountsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get initialBalance => $composableBuilder(
-    column: $table.initialBalance,
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get closingDay => $composableBuilder(
+    column: $table.closingDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dueDay => $composableBuilder(
+    column: $table.dueDay,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3227,6 +3578,21 @@ class $$AccountsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get initialBalance => $composableBuilder(
+    column: $table.initialBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get iconName => $composableBuilder(
     column: $table.iconName,
     builder: (column) => ColumnOrderings(column),
@@ -3237,8 +3603,23 @@ class $$AccountsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get initialBalance => $composableBuilder(
-    column: $table.initialBalance,
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get closingDay => $composableBuilder(
+    column: $table.closingDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dueDay => $composableBuilder(
+    column: $table.dueDay,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -3258,6 +3639,19 @@ class $$AccountsTableTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<double> get initialBalance => $composableBuilder(
+    column: $table.initialBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get iconName =>
       $composableBuilder(column: $table.iconName, builder: (column) => column);
 
@@ -3266,10 +3660,21 @@ class $$AccountsTableTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<double> get initialBalance => $composableBuilder(
-    column: $table.initialBalance,
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get closingDay => $composableBuilder(
+    column: $table.closingDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get dueDay =>
+      $composableBuilder(column: $table.dueDay, builder: (column) => column);
 }
 
 class $$AccountsTableTableTableManager
@@ -3305,32 +3710,56 @@ class $$AccountsTableTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String> iconName = const Value.absent(),
-                Value<int> colorValue = const Value.absent(),
+                Value<String> type = const Value.absent(),
                 Value<double> initialBalance = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> iconName = const Value.absent(),
+                Value<int?> colorValue = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<double?> creditLimit = const Value.absent(),
+                Value<int?> closingDay = const Value.absent(),
+                Value<int?> dueDay = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsTableCompanion(
                 id: id,
                 name: name,
+                type: type,
+                initialBalance: initialBalance,
+                currencyCode: currencyCode,
                 iconName: iconName,
                 colorValue: colorValue,
-                initialBalance: initialBalance,
+                isDefault: isDefault,
+                creditLimit: creditLimit,
+                closingDay: closingDay,
+                dueDay: dueDay,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
                 required String name,
-                required String iconName,
-                required int colorValue,
+                required String type,
                 Value<double> initialBalance = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> iconName = const Value.absent(),
+                Value<int?> colorValue = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<double?> creditLimit = const Value.absent(),
+                Value<int?> closingDay = const Value.absent(),
+                Value<int?> dueDay = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsTableCompanion.insert(
                 id: id,
                 name: name,
+                type: type,
+                initialBalance: initialBalance,
+                currencyCode: currencyCode,
                 iconName: iconName,
                 colorValue: colorValue,
-                initialBalance: initialBalance,
+                isDefault: isDefault,
+                creditLimit: creditLimit,
+                closingDay: closingDay,
+                dueDay: dueDay,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

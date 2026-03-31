@@ -17,37 +17,55 @@ class DatabaseSeeder {
     await db.delete(db.budgetsTable).go();
     await db.delete(db.goalsTable).go();
 
-    // 2. Insertar Cuentas
+    // 2. Insertar Cuentas Reales
     await db.into(db.accountsTable).insert(AccountsTableCompanion.insert(
-      id: 'a1',
-      name: 'Efectivo',
-      iconName: 'wallet',
-      colorValue: Colors.green.toARGB32(),
-      initialBalance: const Value(25000),
+      id: 'mp_ars',
+      name: 'Mercado Pago',
+      type: 'bank',
+      currencyCode: const Value('ARS'),
+      iconName: const Value('account_balance_wallet'),
+      colorValue: const Value(0xFF00B1EA),
+      initialBalance: const Value(692932.13),
+      isDefault: const Value(true),
     ));
 
     await db.into(db.accountsTable).insert(AccountsTableCompanion.insert(
-      id: 'a2',
-      name: 'Galicia',
-      iconName: 'account_balance',
-      colorValue: Colors.orange.toARGB32(),
-      initialBalance: const Value(810000),
+      id: 'ap_usd',
+      name: 'AstroPay',
+      type: 'bank',
+      currencyCode: const Value('USD'),
+      iconName: const Value('payments'),
+      colorValue: const Value(0xFF7C6EF7),
+      initialBalance: const Value(2101.12),
     ));
 
-    // 3. Insertar Personas
-    await db.into(db.personsTable).insert(PersonsTableCompanion.insert(
-      id: 'p1',
-      name: 'Sofía',
-      alias: const Value('Sofi'),
-      colorValue: Colors.pinkAccent.toARGB32(),
-      totalBalance: const Value(45000), // Me debe
+    await db.into(db.accountsTable).insert(AccountsTableCompanion.insert(
+      id: 'mc_credit',
+      name: 'Mastercard',
+      type: 'credit',
+      currencyCode: const Value('ARS'),
+      iconName: const Value('credit_card'),
+      colorValue: const Value(0xFFFF5C6E),
+      initialBalance: const Value(79987.00), // Lo que se debe hoy
+      closingDay: const Value(26),
+      dueDay: const Value(8),
     ));
+
+    // 3. Insertar Personas Reales
     await db.into(db.personsTable).insert(PersonsTableCompanion.insert(
-      id: 'p2',
-      name: 'Juan Perez',
+      id: 'p_sofi',
+      name: 'Sofía Taranto',
+      alias: const Value('Sovi'),
+      colorValue: const Value(0xFFE91E63),
+      totalBalance: const Value(27944.33), // Te debe
+    ));
+
+    await db.into(db.personsTable).insert(PersonsTableCompanion.insert(
+      id: 'p_juan',
+      name: 'Juan Taranto',
       alias: const Value('Juancito'),
-      colorValue: Colors.blueAccent.toARGB32(),
-      totalBalance: const Value(-15000), // Le debo
+      colorValue: const Value(0xFF2196F3),
+      totalBalance: const Value(141380.67), // Te debe
     ));
 
     // 4. Insertar Transacciones (Ejemplos)

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../widgets/statement_scanner_bottom_sheet.dart';
+import '../widgets/month_closure_wizard.dart';
 
 class MonthlyOverviewPage extends StatefulWidget {
   const MonthlyOverviewPage({super.key});
@@ -56,6 +57,18 @@ class _MonthlyOverviewPageState extends State<MonthlyOverviewPage> with SingleTi
               icon: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
               onPressed: () => _changeMonth(1),
             ),
+            const SizedBox(width: 8),
+            // Botón de Cierre de Mes
+            if (_selectedMonth.month == DateTime.now().month)
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  side: BorderSide(color: AppTheme.colorTransfer.withValues(alpha: 0.5)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                onPressed: () => MonthClosureWizard.show(context, _selectedMonth),
+                child: const Text('Cerrar Mes', style: TextStyle(color: Colors.white, fontSize: 11)),
+              ),
           ],
         ),
         centerTitle: true,

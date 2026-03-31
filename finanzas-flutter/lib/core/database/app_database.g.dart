@@ -136,6 +136,30 @@ class $AccountsTableTable extends AccountsTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pendingStatementAmountMeta =
+      const VerificationMeta('pendingStatementAmount');
+  @override
+  late final GeneratedColumn<double> pendingStatementAmount =
+      GeneratedColumn<double>(
+        'pending_statement_amount',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0.0),
+      );
+  static const VerificationMeta _lastClosedDateMeta = const VerificationMeta(
+    'lastClosedDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastClosedDate =
+      GeneratedColumn<DateTime>(
+        'last_closed_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -149,6 +173,8 @@ class $AccountsTableTable extends AccountsTable
     creditLimit,
     closingDay,
     dueDay,
+    pendingStatementAmount,
+    lastClosedDate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -240,6 +266,24 @@ class $AccountsTableTable extends AccountsTable
         dueDay.isAcceptableOrUnknown(data['due_day']!, _dueDayMeta),
       );
     }
+    if (data.containsKey('pending_statement_amount')) {
+      context.handle(
+        _pendingStatementAmountMeta,
+        pendingStatementAmount.isAcceptableOrUnknown(
+          data['pending_statement_amount']!,
+          _pendingStatementAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_closed_date')) {
+      context.handle(
+        _lastClosedDateMeta,
+        lastClosedDate.isAcceptableOrUnknown(
+          data['last_closed_date']!,
+          _lastClosedDateMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -293,6 +337,14 @@ class $AccountsTableTable extends AccountsTable
         DriftSqlType.int,
         data['${effectivePrefix}due_day'],
       ),
+      pendingStatementAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}pending_statement_amount'],
+      )!,
+      lastClosedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_closed_date'],
+      ),
     );
   }
 
@@ -314,6 +366,8 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
   final double? creditLimit;
   final int? closingDay;
   final int? dueDay;
+  final double pendingStatementAmount;
+  final DateTime? lastClosedDate;
   const AccountEntity({
     required this.id,
     required this.name,
@@ -326,6 +380,8 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     this.creditLimit,
     this.closingDay,
     this.dueDay,
+    required this.pendingStatementAmount,
+    this.lastClosedDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -350,6 +406,10 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     }
     if (!nullToAbsent || dueDay != null) {
       map['due_day'] = Variable<int>(dueDay);
+    }
+    map['pending_statement_amount'] = Variable<double>(pendingStatementAmount);
+    if (!nullToAbsent || lastClosedDate != null) {
+      map['last_closed_date'] = Variable<DateTime>(lastClosedDate);
     }
     return map;
   }
@@ -377,6 +437,10 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
       dueDay: dueDay == null && nullToAbsent
           ? const Value.absent()
           : Value(dueDay),
+      pendingStatementAmount: Value(pendingStatementAmount),
+      lastClosedDate: lastClosedDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastClosedDate),
     );
   }
 
@@ -397,6 +461,10 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
       creditLimit: serializer.fromJson<double?>(json['creditLimit']),
       closingDay: serializer.fromJson<int?>(json['closingDay']),
       dueDay: serializer.fromJson<int?>(json['dueDay']),
+      pendingStatementAmount: serializer.fromJson<double>(
+        json['pendingStatementAmount'],
+      ),
+      lastClosedDate: serializer.fromJson<DateTime?>(json['lastClosedDate']),
     );
   }
   @override
@@ -414,6 +482,10 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
       'creditLimit': serializer.toJson<double?>(creditLimit),
       'closingDay': serializer.toJson<int?>(closingDay),
       'dueDay': serializer.toJson<int?>(dueDay),
+      'pendingStatementAmount': serializer.toJson<double>(
+        pendingStatementAmount,
+      ),
+      'lastClosedDate': serializer.toJson<DateTime?>(lastClosedDate),
     };
   }
 
@@ -429,6 +501,8 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     Value<double?> creditLimit = const Value.absent(),
     Value<int?> closingDay = const Value.absent(),
     Value<int?> dueDay = const Value.absent(),
+    double? pendingStatementAmount,
+    Value<DateTime?> lastClosedDate = const Value.absent(),
   }) => AccountEntity(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -441,6 +515,11 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
     closingDay: closingDay.present ? closingDay.value : this.closingDay,
     dueDay: dueDay.present ? dueDay.value : this.dueDay,
+    pendingStatementAmount:
+        pendingStatementAmount ?? this.pendingStatementAmount,
+    lastClosedDate: lastClosedDate.present
+        ? lastClosedDate.value
+        : this.lastClosedDate,
   );
   AccountEntity copyWithCompanion(AccountsTableCompanion data) {
     return AccountEntity(
@@ -465,6 +544,12 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
           ? data.closingDay.value
           : this.closingDay,
       dueDay: data.dueDay.present ? data.dueDay.value : this.dueDay,
+      pendingStatementAmount: data.pendingStatementAmount.present
+          ? data.pendingStatementAmount.value
+          : this.pendingStatementAmount,
+      lastClosedDate: data.lastClosedDate.present
+          ? data.lastClosedDate.value
+          : this.lastClosedDate,
     );
   }
 
@@ -481,7 +566,9 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
           ..write('isDefault: $isDefault, ')
           ..write('creditLimit: $creditLimit, ')
           ..write('closingDay: $closingDay, ')
-          ..write('dueDay: $dueDay')
+          ..write('dueDay: $dueDay, ')
+          ..write('pendingStatementAmount: $pendingStatementAmount, ')
+          ..write('lastClosedDate: $lastClosedDate')
           ..write(')'))
         .toString();
   }
@@ -499,6 +586,8 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
     creditLimit,
     closingDay,
     dueDay,
+    pendingStatementAmount,
+    lastClosedDate,
   );
   @override
   bool operator ==(Object other) =>
@@ -514,7 +603,9 @@ class AccountEntity extends DataClass implements Insertable<AccountEntity> {
           other.isDefault == this.isDefault &&
           other.creditLimit == this.creditLimit &&
           other.closingDay == this.closingDay &&
-          other.dueDay == this.dueDay);
+          other.dueDay == this.dueDay &&
+          other.pendingStatementAmount == this.pendingStatementAmount &&
+          other.lastClosedDate == this.lastClosedDate);
 }
 
 class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
@@ -529,6 +620,8 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
   final Value<double?> creditLimit;
   final Value<int?> closingDay;
   final Value<int?> dueDay;
+  final Value<double> pendingStatementAmount;
+  final Value<DateTime?> lastClosedDate;
   final Value<int> rowid;
   const AccountsTableCompanion({
     this.id = const Value.absent(),
@@ -542,6 +635,8 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     this.creditLimit = const Value.absent(),
     this.closingDay = const Value.absent(),
     this.dueDay = const Value.absent(),
+    this.pendingStatementAmount = const Value.absent(),
+    this.lastClosedDate = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsTableCompanion.insert({
@@ -556,6 +651,8 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     this.creditLimit = const Value.absent(),
     this.closingDay = const Value.absent(),
     this.dueDay = const Value.absent(),
+    this.pendingStatementAmount = const Value.absent(),
+    this.lastClosedDate = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -572,6 +669,8 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     Expression<double>? creditLimit,
     Expression<int>? closingDay,
     Expression<int>? dueDay,
+    Expression<double>? pendingStatementAmount,
+    Expression<DateTime>? lastClosedDate,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -586,6 +685,9 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
       if (creditLimit != null) 'credit_limit': creditLimit,
       if (closingDay != null) 'closing_day': closingDay,
       if (dueDay != null) 'due_day': dueDay,
+      if (pendingStatementAmount != null)
+        'pending_statement_amount': pendingStatementAmount,
+      if (lastClosedDate != null) 'last_closed_date': lastClosedDate,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -602,6 +704,8 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     Value<double?>? creditLimit,
     Value<int?>? closingDay,
     Value<int?>? dueDay,
+    Value<double>? pendingStatementAmount,
+    Value<DateTime?>? lastClosedDate,
     Value<int>? rowid,
   }) {
     return AccountsTableCompanion(
@@ -616,6 +720,9 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
       creditLimit: creditLimit ?? this.creditLimit,
       closingDay: closingDay ?? this.closingDay,
       dueDay: dueDay ?? this.dueDay,
+      pendingStatementAmount:
+          pendingStatementAmount ?? this.pendingStatementAmount,
+      lastClosedDate: lastClosedDate ?? this.lastClosedDate,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -656,6 +763,14 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
     if (dueDay.present) {
       map['due_day'] = Variable<int>(dueDay.value);
     }
+    if (pendingStatementAmount.present) {
+      map['pending_statement_amount'] = Variable<double>(
+        pendingStatementAmount.value,
+      );
+    }
+    if (lastClosedDate.present) {
+      map['last_closed_date'] = Variable<DateTime>(lastClosedDate.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -676,6 +791,8 @@ class AccountsTableCompanion extends UpdateCompanion<AccountEntity> {
           ..write('creditLimit: $creditLimit, ')
           ..write('closingDay: $closingDay, ')
           ..write('dueDay: $dueDay, ')
+          ..write('pendingStatementAmount: $pendingStatementAmount, ')
+          ..write('lastClosedDate: $lastClosedDate, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3476,6 +3593,8 @@ typedef $$AccountsTableTableCreateCompanionBuilder =
       Value<double?> creditLimit,
       Value<int?> closingDay,
       Value<int?> dueDay,
+      Value<double> pendingStatementAmount,
+      Value<DateTime?> lastClosedDate,
       Value<int> rowid,
     });
 typedef $$AccountsTableTableUpdateCompanionBuilder =
@@ -3491,6 +3610,8 @@ typedef $$AccountsTableTableUpdateCompanionBuilder =
       Value<double?> creditLimit,
       Value<int?> closingDay,
       Value<int?> dueDay,
+      Value<double> pendingStatementAmount,
+      Value<DateTime?> lastClosedDate,
       Value<int> rowid,
     });
 
@@ -3555,6 +3676,16 @@ class $$AccountsTableTableFilterComposer
 
   ColumnFilters<int> get dueDay => $composableBuilder(
     column: $table.dueDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get pendingStatementAmount => $composableBuilder(
+    column: $table.pendingStatementAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastClosedDate => $composableBuilder(
+    column: $table.lastClosedDate,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3622,6 +3753,16 @@ class $$AccountsTableTableOrderingComposer
     column: $table.dueDay,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get pendingStatementAmount => $composableBuilder(
+    column: $table.pendingStatementAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastClosedDate => $composableBuilder(
+    column: $table.lastClosedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableTableAnnotationComposer
@@ -3675,6 +3816,16 @@ class $$AccountsTableTableAnnotationComposer
 
   GeneratedColumn<int> get dueDay =>
       $composableBuilder(column: $table.dueDay, builder: (column) => column);
+
+  GeneratedColumn<double> get pendingStatementAmount => $composableBuilder(
+    column: $table.pendingStatementAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastClosedDate => $composableBuilder(
+    column: $table.lastClosedDate,
+    builder: (column) => column,
+  );
 }
 
 class $$AccountsTableTableTableManager
@@ -3719,6 +3870,8 @@ class $$AccountsTableTableTableManager
                 Value<double?> creditLimit = const Value.absent(),
                 Value<int?> closingDay = const Value.absent(),
                 Value<int?> dueDay = const Value.absent(),
+                Value<double> pendingStatementAmount = const Value.absent(),
+                Value<DateTime?> lastClosedDate = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsTableCompanion(
                 id: id,
@@ -3732,6 +3885,8 @@ class $$AccountsTableTableTableManager
                 creditLimit: creditLimit,
                 closingDay: closingDay,
                 dueDay: dueDay,
+                pendingStatementAmount: pendingStatementAmount,
+                lastClosedDate: lastClosedDate,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3747,6 +3902,8 @@ class $$AccountsTableTableTableManager
                 Value<double?> creditLimit = const Value.absent(),
                 Value<int?> closingDay = const Value.absent(),
                 Value<int?> dueDay = const Value.absent(),
+                Value<double> pendingStatementAmount = const Value.absent(),
+                Value<DateTime?> lastClosedDate = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsTableCompanion.insert(
                 id: id,
@@ -3760,6 +3917,8 @@ class $$AccountsTableTableTableManager
                 creditLimit: creditLimit,
                 closingDay: closingDay,
                 dueDay: dueDay,
+                pendingStatementAmount: pendingStatementAmount,
+                lastClosedDate: lastClosedDate,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -15,6 +15,10 @@ class AccountsTable extends Table {
   RealColumn get creditLimit => real().nullable()();
   IntColumn get closingDay => integer().nullable()();
   IntColumn get dueDay => integer().nullable()();
+  
+  // Tracking for Statement Cycles (Cierre de Mes)
+  RealColumn get pendingStatementAmount => real().withDefault(const Constant(0.0))();
+  DateTimeColumn get lastClosedDate => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

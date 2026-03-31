@@ -40,6 +40,7 @@ class _MonthlyOverviewPageState extends State<MonthlyOverviewPage> with SingleTi
 
     return Scaffold(
       appBar: AppBar(
+        leading: const BackButton(color: Colors.white),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

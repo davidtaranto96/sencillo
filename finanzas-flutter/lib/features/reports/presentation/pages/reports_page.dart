@@ -28,6 +28,7 @@ class _ReportsPageState extends State<ReportsPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const BackButton(color: Colors.white),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

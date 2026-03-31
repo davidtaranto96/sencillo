@@ -16,33 +16,36 @@ class PeoplePage extends ConsumerWidget {
     final globalBalance = ref.watch(globalPeopleBalanceProvider);
     final fmt = NumberFormat.currency(symbol: '\$', decimalDigits: 2, locale: 'en_US');
     final isPositive = globalBalance >= 0;
+    final cs = Theme.of(context).colorScheme;
 
     return DefaultTabController(
       length: 3,
-      initialIndex: 1, // Focus on "Amigos" by default
+      initialIndex: 1, 
       child: Scaffold(
-        backgroundColor: const Color(0xFF121212),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF121212),
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
+          leading: const BackButton(color: Colors.white),
           title: Text(
             'Personas y Saldos',
-            style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
           ),
           actions: [
-            IconButton(icon: const Icon(Icons.search, color: Colors.white70), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.person_add_alt_1_outlined, color: Colors.white70), onPressed: () {}),
+            IconButton(
+              icon: const Icon(Icons.search, color: Colors.white70), 
+              onPressed: () => _showSearchPlaceholder(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_1_outlined, color: Colors.white70), 
+              onPressed: () => _showAddPersonPlaceholder(context),
+            ),
           ],
         ),
         body: Column(
           children: [
-            // Resumen de Saldo Global (Splitwise style)
+            // Resumen de Saldo Global (AstroPay style)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -51,50 +54,103 @@ class PeoplePage extends ConsumerWidget {
                       ? 'En general, te deben ${fmt.format(globalBalance)}'
                       : 'En general, debés ${fmt.format(globalBalance.abs())}',
                     style: GoogleFonts.inter(
-                      color: isPositive ? const Color(0xFF26A69A) : const Color(0xFFFF7043),
+                      color: isPositive ? AppTheme.colorTransfer : AppTheme.colorExpense,
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Icon(Icons.tune_rounded, color: Colors.white70, size: 20),
+                  IconButton(
+                    icon: const Icon(Icons.tune_rounded, color: Colors.white70, size: 20),
+                    onPressed: () => _showFilterPlaceholder(context),
+                  ),
                 ],
               ),
             ),
 
-            // TabBar
-            const TabBar(
-              indicatorColor: Color(0xFF26A69A),
-              labelColor: Color(0xFF26A69A),
+            // TabBar (AstroPay style indicator)
+            TabBar(
+              indicatorColor: AppTheme.colorTransfer,
+              labelColor: AppTheme.colorTransfer,
               unselectedLabelColor: Colors.white38,
-              tabs: [
-                Tab(child: Text('Grupos', style: TextStyle(fontSize: 13))),
-                Tab(child: Text('Amigos', style: TextStyle(fontSize: 13))),
-                Tab(child: Text('Actividad', style: TextStyle(fontSize: 13))),
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              tabs: const [
+                Tab(text: 'Grupos'),
+                Tab(text: 'Amigos'),
+                Tab(text: 'Actividad'),
               ],
             ),
 
             Expanded(
               child: TabBarView(
                 children: [
-                   // ─── Pestaña Grupos ───
                   _buildGroupsTab(context, ref),
-                  
-                  // ─── Pestaña Amigos (Main) ───
                   _buildFriendsTab(context, allPeople),
-
-                  // ─── Pestaña Actividad ───
                   _buildActivityTab(context),
                 ],
               ),
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
+        floatingActionButton: FloatingActionButton(
           onPressed: () {},
-          backgroundColor: const Color(0xFF26A69A),
-          icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
-          label: const Text('Añadir gasto', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: AppTheme.colorTransfer,
+          child: const Icon(Icons.receipt_long_rounded, color: Colors.white),
         ),
+      ),
+    );
+  }
+
+  void _showSearchPlaceholder(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Buscando personas... (Simulado)')),
+    );
+  }
+
+  void _showAddPersonPlaceholder(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1D2E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.person_add_alt_1_outlined, color: AppTheme.colorTransfer, size: 48),
+            const SizedBox(height: 16),
+            const Text('Añadir contacto', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            TextField(decoration: InputDecoration(labelText: 'Email o nombre', hintText: 'ej. juan@gmail.com')),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.colorTransfer),
+                child: const Text('Continuar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFilterPlaceholder(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1D2E),
+      builder: (context) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Text('Filtrar actividad', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ListTile(title: const Text('Este mes'), leading: const Icon(Icons.calendar_today), onTap: () => Navigator.pop(context)),
+          ListTile(title: const Text('Último año'), leading: const Icon(Icons.history), onTap: () => Navigator.pop(context)),
+          ListTile(title: const Text('Solo deudas pendientes'), leading: const Icon(Icons.money_off), onTap: () => Navigator.pop(context)),
+        ],
       ),
     );
   }
@@ -102,6 +158,7 @@ class PeoplePage extends ConsumerWidget {
   Widget _buildFriendsTab(BuildContext context, List<Person> people) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
+      physics: const BouncingScrollPhysics(),
       itemCount: people.length,
       itemBuilder: (context, index) {
         final person = people[index];
@@ -121,15 +178,19 @@ class PeoplePage extends ConsumerWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2C),
-            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF1E1E2C).withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Row(
             children: [
               Container(
                 width: 50, height: 50,
-                decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.group, color: Colors.white54),
+                decoration: BoxDecoration(
+                  color: AppTheme.colorTransfer.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.group_rounded, color: AppTheme.colorTransfer),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -141,6 +202,7 @@ class PeoplePage extends ConsumerWidget {
                   ],
                 ),
               ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white24),
             ],
           ),
         );
@@ -163,7 +225,7 @@ class _FriendListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(symbol: '\$', decimalDigits: 2, locale: 'en_US');
     final isPositive = person.owesMe;
-    final color = isPositive ? const Color(0xFF26A69A) : const Color(0xFFFF7043);
+    final color = isPositive ? AppTheme.colorTransfer : AppTheme.colorExpense;
 
     return Column(
       children: [
@@ -187,10 +249,9 @@ class _FriendListTile extends StatelessWidget {
                   children: [
                     Text(
                       person.displayName,
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
-                    // Detalle por grupo (Identado como en el screenshot)
                     ...person.groupDebts.map((debt) => Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Row(
@@ -200,16 +261,21 @@ class _FriendListTile extends StatelessWidget {
                           Expanded(
                             child: RichText(
                               text: TextSpan(
-                                style: const TextStyle(fontSize: 13, color: Colors.white38),
+                                style: const TextStyle(fontSize: 13, color: Colors.white54),
                                 children: [
                                   TextSpan(text: person.displayName),
                                   TextSpan(text: debt.amount > 0 ? ' te debe ' : ' debés a '),
                                   TextSpan(
                                     text: fmt.format(debt.amount.abs()),
-                                    style: TextStyle(color: debt.amount > 0 ? const Color(0xFF26A69A).withValues(alpha: 0.8) : const Color(0xFFFF7043).withValues(alpha: 0.8)),
+                                    style: TextStyle(
+                                      color: debt.amount > 0 
+                                          ? AppTheme.colorTransfer.withValues(alpha: 0.8) 
+                                          : AppTheme.colorExpense.withValues(alpha: 0.8),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   const TextSpan(text: ' para '),
-                                  TextSpan(text: '"${debt.groupName}"', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  TextSpan(text: '"${debt.groupName}"', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
                                 ],
                               ),
                             ),
@@ -230,7 +296,7 @@ class _FriendListTile extends StatelessWidget {
                   ),
                   Text(
                     fmt.format(person.totalBalance.abs()),
-                    style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w600, fontSize: 15),
+                    style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ],
               ),

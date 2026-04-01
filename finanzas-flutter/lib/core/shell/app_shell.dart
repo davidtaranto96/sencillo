@@ -40,10 +40,8 @@ class AppShell extends StatelessWidget {
           currentIndex: currentIndex,
           tabs: _tabs,
           onTap: (i) {
-            // Ensure any open bottom sheet or dialog is closed before tab change
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
+            // Close ALL open modals, bottom sheets, dialogs before switching tab
+            Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
             context.go(_tabs[i].path);
           },
         ),

@@ -276,7 +276,7 @@ class _ResumenTab extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 100),
         decoration: const BoxDecoration(
           color: Color(0xFF18181F),
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),

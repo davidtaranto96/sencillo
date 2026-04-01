@@ -294,7 +294,7 @@ void _showEditAccountDialog(BuildContext context, WidgetRef ref, dom.Account acc
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (ctx) => Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 100),
       decoration: const BoxDecoration(
         color: Color(0xFF18181F),
         borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
@@ -400,7 +400,7 @@ void _showPayStatementDialog(BuildContext context, WidgetRef ref, dom.Account ac
     backgroundColor: Colors.transparent,
     builder: (ctx) => StatefulBuilder(
       builder: (context, setState) => Container(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 100),
         decoration: const BoxDecoration(
           color: Color(0xFF18181F),
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),

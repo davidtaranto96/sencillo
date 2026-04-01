@@ -149,7 +149,7 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
     }
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 100),
       decoration: const BoxDecoration(
         color: Color(0xFF18181F),
         borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),

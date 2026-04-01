@@ -41,7 +41,8 @@ class AppShell extends StatelessWidget {
           tabs: _tabs,
           onTap: (i) {
             // Close ALL open modals, bottom sheets, dialogs before switching tab
-            Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+            // Sin rootNavigator: opera sobre el ShellRoute Navigator donde viven los bottom sheets
+            Navigator.of(context).popUntil((route) => route.isFirst);
             context.go(_tabs[i].path);
           },
         ),

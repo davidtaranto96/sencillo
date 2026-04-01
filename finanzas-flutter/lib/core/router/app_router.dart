@@ -1,4 +1,5 @@
 
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/dashboard/presentation/pages/home_page.dart';
@@ -15,11 +16,15 @@ import '../../features/accounts/presentation/pages/accounts_page.dart';
 import '../../features/accounts/presentation/pages/account_detail_page.dart';
 import '../shell/app_shell.dart';
 
+/// Key del Navigator interno del ShellRoute — usado por AppShell para cerrar modales
+final shellNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/home',
     routes: [
       ShellRoute(
+        navigatorKey: shellNavigatorKey,
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(

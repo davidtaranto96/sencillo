@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../router/app_router.dart';
 
 class AppShell extends StatelessWidget {
   final Widget child;
@@ -41,9 +42,12 @@ class AppShell extends StatelessWidget {
           tabs: _tabs,
           onTap: (i) {
             // Close ALL open modals/bottom sheets before switching tab
-            final navigator = Navigator.of(context);
-            while (navigator.canPop()) {
-              navigator.pop();
+            // Usa el NavigatorState del ShellRoute (donde viven los bottom sheets)
+            final nav = shellNavigatorKey.currentState;
+            if (nav != null) {
+              while (nav.canPop()) {
+                nav.pop();
+              }
             }
             context.go(_tabs[i].path);
           },

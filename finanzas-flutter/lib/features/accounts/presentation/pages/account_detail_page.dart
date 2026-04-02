@@ -406,6 +406,7 @@ void _showEditAccountDialog(BuildContext context, WidgetRef ref, dom.Account acc
   final aliasController = TextEditingController(text: account.alias ?? '');
   final cvuController = TextEditingController(text: account.cvu ?? '');
   final creditLimitController = TextEditingController(text: account.creditLimit != null ? formatInitialAmount(account.creditLimit!) : '');
+  final debtController = TextEditingController(text: account.pendingStatementAmount > 0 ? formatInitialAmount(account.pendingStatementAmount) : '');
 
   showModalBottomSheet(
     context: context,
@@ -497,6 +498,25 @@ void _showEditAccountDialog(BuildContext context, WidgetRef ref, dom.Account acc
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: debtController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsSeparatorFormatter()],
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Deuda pendiente',
+                  prefixText: r'$ ',
+                  hintText: 'Ej: 120.000',
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
+                  labelStyle: const TextStyle(color: AppTheme.colorExpense),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppTheme.colorExpense),
+                  ),
+                ),
+              ),
             ],
             const SizedBox(height: 16),
             TextField(
@@ -540,6 +560,7 @@ void _showEditAccountDialog(BuildContext context, WidgetRef ref, dom.Account acc
                   final closingDay = int.tryParse(closingDayController.text);
                   final dueDay = int.tryParse(dueDayController.text);
                   final creditLimit = creditLimitController.text.isNotEmpty ? parseFormattedAmount(creditLimitController.text) : null;
+                  final debt = parseFormattedAmount(debtController.text);
                   final alias = aliasController.text.trim();
                   final cvu = cvuController.text.trim();
 
@@ -553,6 +574,7 @@ void _showEditAccountDialog(BuildContext context, WidgetRef ref, dom.Account acc
                     clearDueDay: dueDayController.text.isEmpty && account.dueDay != null,
                     creditLimit: creditLimit,
                     clearCreditLimit: creditLimitController.text.isEmpty && account.creditLimit != null,
+                    pendingStatementAmount: debt,
                     alias: alias.isNotEmpty ? alias : null,
                     clearAlias: alias.isEmpty && account.alias != null,
                     cvu: cvu.isNotEmpty ? cvu : null,

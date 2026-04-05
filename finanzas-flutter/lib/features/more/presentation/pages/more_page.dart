@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -44,7 +44,7 @@ class _MorePageState extends ConsumerState<MorePage>
             // ── Header ──
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
                 child: Text(
                   'Más',
                   style: GoogleFonts.inter(
@@ -57,34 +57,20 @@ class _MorePageState extends ConsumerState<MorePage>
             ),
 
             // ── Mi perfil / QR ──
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
-                child: Text(
-                  'MI PERFIL',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white38,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
             const SliverToBoxAdapter(child: MyQrCard()),
 
-            // ── Hero Balance Card ──
-            SliverToBoxAdapter(child: _HeroBalanceCard()),
+            // ── Resumen financiero compacto ──
+            SliverToBoxAdapter(child: _CompactBalanceCard()),
 
             // ── Insights rápidos ──
             SliverToBoxAdapter(child: _InsightsSection()),
 
-            // ── Herramientas section ──
+            // ── Accesos rápidos (grid 4x2 compacto) ──
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
                 child: Text(
-                  'HERRAMIENTAS',
+                  'ACCESOS RÁPIDOS',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -95,16 +81,15 @@ class _MorePageState extends ConsumerState<MorePage>
               ),
             ),
 
-            // ── Grid de herramientas ──
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverGrid.count(
-                crossAxisCount: 3,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.92,
+                crossAxisCount: 4,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 0.85,
                 children: [
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.swap_horiz_rounded,
                     label: 'Movimientos',
                     color: AppTheme.colorTransfer,
@@ -114,7 +99,7 @@ class _MorePageState extends ConsumerState<MorePage>
                       ),
                     ),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.donut_large_rounded,
                     label: 'Presupuestos',
                     color: AppTheme.colorWarning,
@@ -124,37 +109,37 @@ class _MorePageState extends ConsumerState<MorePage>
                       ),
                     ),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.calendar_month_rounded,
                     label: 'Mes',
                     color: AppTheme.colorTransfer,
                     onTap: () => context.push('/monthly_overview'),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.people_rounded,
                     label: 'Personas',
                     color: AppTheme.colorIncome,
                     onTap: () => context.push('/people'),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.shopping_cart_rounded,
                     label: 'Wishlist',
                     color: AppTheme.colorWarning,
                     onTap: () => context.push('/wishlist'),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.bar_chart_rounded,
                     label: 'Reportes',
                     color: AppTheme.colorExpense,
                     onTap: () => context.push('/reports'),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.account_balance_rounded,
                     label: 'Cuentas',
                     color: AppTheme.colorIncome,
                     onTap: () => context.push('/accounts'),
                   ),
-                  _ToolCard(
+                  _QuickTool(
                     icon: Icons.savings_rounded,
                     label: 'Ahorros',
                     color: AppTheme.colorTransfer,
@@ -164,10 +149,76 @@ class _MorePageState extends ConsumerState<MorePage>
               ),
             ),
 
+            // ── Configuración section (lista compacta) ──
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
+                child: Text(
+                  'CONFIGURACIÓN',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white38,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  ),
+                  child: Column(
+                    children: [
+                      _CompactRow(
+                        icon: Icons.settings_rounded,
+                        label: 'Ajustes generales',
+                        color: AppTheme.colorNeutral,
+                        onTap: () => context.push('/settings'),
+                      ),
+                      _divider(),
+                      _CompactRow(
+                        icon: Icons.tab_rounded,
+                        label: 'Personalizar navegación',
+                        color: AppTheme.colorTransfer,
+                        onTap: () => showTabConfigSheet(context, ref),
+                      ),
+                      _divider(),
+                      _CompactRow(
+                        icon: Icons.auto_awesome_rounded,
+                        label: 'Ayuda y Tutorial',
+                        color: const Color(0xFF6C63FF),
+                        onTap: () => showHelpSheet(context),
+                      ),
+                      _divider(),
+                      _CompactRow(
+                        icon: Icons.rocket_launch_rounded,
+                        label: 'Novedades',
+                        color: AppTheme.colorIncome,
+                        onTap: () => context.push('/novedades'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Backup ──
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              sliver: SliverToBoxAdapter(child: _BackupRow()),
+            ),
+
             // ── Apoyar el proyecto ──
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
                 child: Text(
                   'APOYAR EL PROYECTO',
                   style: TextStyle(
@@ -189,36 +240,47 @@ class _MorePageState extends ConsumerState<MorePage>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFFf5a623).withValues(alpha: 0.08),
+                        const Color(0xFFf5a623).withValues(alpha: 0.06),
                         Colors.white.withValues(alpha: 0.02),
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFf5a623).withValues(alpha: 0.15)),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFf5a623).withValues(alpha: 0.12)),
                   ),
                   child: Column(
                     children: [
-                      _DonationRow(
+                      _CompactRow(
                         icon: Icons.local_cafe_rounded,
                         label: 'Cafecito',
                         subtitle: 'cafecito.app/david-t',
                         color: const Color(0xFFf5a623),
+                        trailing: Icons.open_in_new_rounded,
                         onTap: () => _launchUrl('https://cafecito.app/david-t'),
                       ),
-                      Divider(height: 1, color: Colors.white.withValues(alpha: 0.05), indent: 56),
-                      _DonationRow(
+                      _divider(),
+                      _CompactRow(
                         icon: Icons.account_balance_wallet_rounded,
                         label: 'Mercado Pago',
                         subtitle: 'Alias: david.taranto',
                         color: const Color(0xFF009ee3),
-                        onTap: () => _launchUrl('https://link.mercadopago.com.ar/david.taranto'),
+                        trailing: Icons.copy_rounded,
+                        onTap: () {
+                          Clipboard.setData(const ClipboardData(text: 'david.taranto'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Alias copiado: david.taranto'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
                       ),
-                      Divider(height: 1, color: Colors.white.withValues(alpha: 0.05), indent: 56),
-                      _DonationRow(
+                      _divider(),
+                      _CompactRow(
                         icon: Icons.code_rounded,
                         label: 'GitHub',
                         subtitle: 'github.com/davidtaranto96',
                         color: Colors.white60,
+                        trailing: Icons.open_in_new_rounded,
                         onTap: () => _launchUrl('https://github.com/davidtaranto96'),
                       ),
                     ],
@@ -227,93 +289,42 @@ class _MorePageState extends ConsumerState<MorePage>
               ),
             ),
 
-            // ── Configuración section ──
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
-                child: Text(
-                  'CONFIGURACIÓN',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white38,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-
+            // ── Cerrar sesión ──
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _SettingsRow(
-                    icon: Icons.settings_rounded,
-                    label: 'Ajustes generales',
-                    subtitle: 'Perfil, moneda, categorías',
-                    color: AppTheme.colorNeutral,
-                    onTap: () => context.push('/settings'),
-                  ),
-                  const SizedBox(height: 8),
-                  _SettingsRow(
-                    icon: Icons.tab_rounded,
-                    label: 'Personalizar navegación',
-                    subtitle: 'Elegí qué pestañas mostrar',
-                    color: AppTheme.colorTransfer,
-                    onTap: () => showTabConfigSheet(context, ref),
-                  ),
-                  const SizedBox(height: 8),
-                  _SettingsRow(
-                    icon: Icons.auto_awesome_rounded,
-                    label: 'Ayuda y Tutorial',
-                    subtitle: 'Guía de funciones, IA y trucos',
-                    color: const Color(0xFF6C63FF),
-                    onTap: () => showHelpSheet(context),
-                  ),
-                  const SizedBox(height: 8),
-                  _SettingsRow(
-                    icon: Icons.rocket_launch_rounded,
-                    label: 'Novedades',
-                    subtitle: 'Historial de versiones y roadmap',
-                    color: AppTheme.colorIncome,
-                    onTap: () => context.push('/novedades'),
-                  ),
-                  const SizedBox(height: 8),
-                  _BackupRow(),
-                  const SizedBox(height: 8),
-                  _SettingsRow(
-                    icon: Icons.logout_rounded,
-                    label: 'Cerrar sesión',
-                    subtitle: 'Salir de tu cuenta Google',
-                    color: AppTheme.colorExpense,
-                    onTap: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: const Color(0xFF1A1A2E),
-                          title: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
-                          content: const Text(
-                            '¿Querés cerrar sesión? Tus datos locales se mantienen.',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancelar'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Cerrar sesión', style: TextStyle(color: Colors.redAccent)),
-                            ),
-                          ],
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: _CompactRow(
+                  icon: Icons.logout_rounded,
+                  label: 'Cerrar sesión',
+                  color: AppTheme.colorExpense,
+                  standalone: true,
+                  onTap: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: const Color(0xFF1A1A2E),
+                        title: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
+                        content: const Text(
+                          '¿Querés cerrar sesión? Tus datos locales se mantienen.',
+                          style: TextStyle(color: Colors.white70),
                         ),
-                      );
-                      if (confirm == true && mounted) {
-                        await ref.read(firebaseAuthServiceProvider).signOut();
-                      }
-                    },
-                  ),
-                ]),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Cerrar sesión', style: TextStyle(color: Colors.redAccent)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true && mounted) {
+                      await ref.read(firebaseAuthServiceProvider).signOut();
+                    }
+                  },
+                ),
               ),
             ),
 
@@ -325,199 +336,84 @@ class _MorePageState extends ConsumerState<MorePage>
   }
 }
 
+Widget _divider() => Divider(height: 1, color: Colors.white.withValues(alpha: 0.04), indent: 48);
+
+Future<void> _launchUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
 // ─────────────────────────────────────────────
-// Hero Balance Card
+// Compact Balance Card (más chico)
 // ─────────────────────────────────────────────
-class _HeroBalanceCard extends ConsumerWidget {
+class _CompactBalanceCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsStreamProvider).valueOrNull ?? [];
     final safeBudget = ref.watch(safeBudgetProvider);
 
-    // Dinero disponible = solo cuentas que NO son tarjetas de crédito
     final liquidAccounts = accounts.where((a) => !a.isCreditCard).toList();
     final availableMoney = liquidAccounts.fold(0.0, (sum, a) => sum + a.balance);
-
-    // Deuda total en tarjetas de crédito
     final creditCards = accounts.where((a) => a.isCreditCard).toList();
     final totalCardDebt = creditCards.fold(0.0, (sum, a) => sum + a.totalDebt);
-    final totalCreditAvailable = creditCards.fold(0.0, (sum, a) => sum + a.availableCredit);
 
     final isPositive = availableMoney >= 0;
+    final color = isPositive ? AppTheme.colorIncome : AppTheme.colorExpense;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  (isPositive ? AppTheme.colorIncome : AppTheme.colorExpense)
-                      .withValues(alpha: 0.14),
-                  Colors.white.withValues(alpha: 0.03),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Disponible', style: GoogleFonts.inter(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatAmount(availableMoney),
+                    style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w800, color: isPositive ? Colors.white : color),
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: (isPositive ? AppTheme.colorIncome : AppTheme.colorExpense)
-                    .withValues(alpha: 0.22),
+            ),
+            if (totalCardDebt > 0) ...[
+              Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.06)),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Deuda TC', style: GoogleFonts.inter(fontSize: 10, color: Colors.white30)),
+                  Text(formatAmount(totalCardDebt, compact: true),
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.colorExpense)),
+                ],
               ),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Label
-                Row(
-                  children: [
-                    Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 14,
-                      color: Colors.white38,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Dinero disponible',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white38,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Big number
-                Text(
-                  formatAmount(availableMoney),
-                  style: GoogleFonts.inter(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    color: isPositive ? Colors.white : AppTheme.colorExpense,
-                    height: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (liquidAccounts.isNotEmpty)
-                  Text(
-                    '${liquidAccounts.length} cuenta${liquidAccounts.length != 1 ? 's' : ''} · efectivo, banco y ahorros',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: Colors.white30,
-                    ),
-                  ),
-
-                const SizedBox(height: 16),
-                Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
-                const SizedBox(height: 14),
-
-                // 3 secondary metrics in a row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MiniMetric(
-                        icon: Icons.credit_card_rounded,
-                        label: 'Deuda tarjetas',
-                        value: totalCardDebt > 0 ? formatAmount(totalCardDebt, compact: true) : '—',
-                        color: totalCardDebt > 0 ? AppTheme.colorExpense : Colors.white38,
-                      ),
-                    ),
-                    _VerticalDivider(),
-                    Expanded(
-                      child: _MiniMetric(
-                        icon: Icons.bolt_rounded,
-                        label: 'Crédito disp.',
-                        value: totalCreditAvailable > 0
-                            ? formatAmount(totalCreditAvailable, compact: true)
-                            : creditCards.isEmpty ? '—' : '\$0',
-                        color: AppTheme.colorTransfer,
-                      ),
-                    ),
-                    _VerticalDivider(),
-                    Expanded(
-                      child: _MiniMetric(
-                        icon: Icons.shield_rounded,
-                        label: 'Seguro gastar',
-                        value: safeBudget > 0 ? formatAmount(safeBudget, compact: true) : '—',
-                        color: safeBudget > 0 ? AppTheme.colorIncome : Colors.white38,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniMetric extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MiniMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 12, color: color.withValues(alpha: 0.7)),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  color: Colors.white38,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            ],
+            if (safeBudget > 0) ...[
+              const SizedBox(width: 14),
+              Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.06)),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Seguro', style: GoogleFonts.inter(fontSize: 10, color: Colors.white30)),
+                  Text(formatAmount(safeBudget, compact: true),
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.colorIncome)),
+                ],
               ),
-            ),
+            ],
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _VerticalDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 36,
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      color: Colors.white.withValues(alpha: 0.07),
+      ),
     );
   }
 }
@@ -534,7 +430,6 @@ class _InsightsSection extends ConsumerWidget {
 
     final insights = <_InsightData>[];
 
-    // Personas que te deben
     final debtors = people.where((p) => p.totalBalance > 0).toList();
     if (debtors.isNotEmpty) {
       final total = debtors.fold(0.0, (s, p) => s + p.totalBalance);
@@ -548,7 +443,6 @@ class _InsightsSection extends ConsumerWidget {
       ));
     }
 
-    // Presupuesto en alerta (> 80%)
     final overBudgets = budgets
         .where((b) => b.limitAmount > 0 && b.spentAmount / b.limitAmount >= 0.80)
         .toList()
@@ -566,7 +460,6 @@ class _InsightsSection extends ConsumerWidget {
       ));
     }
 
-    // Meta más cercana a completarse
     final almostDone = goals
         .where((g) => g.progress >= 0.75 && !g.isCompleted)
         .toList()
@@ -584,25 +477,12 @@ class _InsightsSection extends ConsumerWidget {
     if (insights.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'DESTACADO',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.white38,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...insights.take(2).map((ins) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _InsightTile(data: ins),
-              )),
-        ],
+        children: insights.take(2).map((ins) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _InsightTile(data: ins),
+            )).toList(),
       ),
     );
   }
@@ -645,28 +525,28 @@ class _InsightTile extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: data.color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: data.color.withValues(alpha: 0.18)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: data.color.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
-            Text(data.emoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 10),
+            Text(data.emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 data.text,
                 style: GoogleFonts.inter(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withValues(alpha: 0.85),
                 ),
               ),
             ),
             Icon(Icons.chevron_right_rounded,
-                size: 16, color: data.color.withValues(alpha: 0.5)),
+                size: 14, color: data.color.withValues(alpha: 0.5)),
           ],
         ),
       ),
@@ -675,15 +555,15 @@ class _InsightTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// Tool Card (Grid) — rediseñado
+// Quick Tool (grid compacto 4 columnas)
 // ─────────────────────────────────────────────
-class _ToolCard extends StatelessWidget {
+class _QuickTool extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _ToolCard({
+  const _QuickTool({
     required this.icon,
     required this.label,
     required this.color,
@@ -695,34 +575,35 @@ class _ToolCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(12),
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: color, size: 19),
+              child: Icon(icon, color: color, size: 17),
             ),
+            const SizedBox(height: 6),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.85),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -732,6 +613,80 @@ class _ToolCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
+// Compact Row (para listas agrupadas)
+// ─────────────────────────────────────────────
+class _CompactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final Color color;
+  final VoidCallback onTap;
+  final IconData? trailing;
+  final bool standalone;
+
+  const _CompactRow({
+    required this.icon,
+    required this.label,
+    this.subtitle,
+    required this.color,
+    required this.onTap,
+    this.trailing,
+    this.standalone = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final content = GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                  if (subtitle != null)
+                    Text(subtitle!, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
+                ],
+              ),
+            ),
+            Icon(trailing ?? Icons.chevron_right_rounded,
+                color: Colors.white.withValues(alpha: 0.18), size: 16),
+          ],
+        ),
+      ),
+    );
+
+    if (standalone) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: content,
+      );
+    }
+    return content;
+  }
+}
+
 // ─────────────────────────────────────────────
 // Backup Row
 // ─────────────────────────────────────────────
@@ -745,7 +700,14 @@ class _BackupRowState extends ConsumerState<_BackupRow> {
 
   Future<void> _backup() async {
     final uid = ref.read(currentUidProvider);
-    if (uid == null) return;
+    if (uid == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Iniciá sesión para hacer backup en la nube')),
+        );
+      }
+      return;
+    }
     setState(() => _loading = true);
     try {
       final service = CloudBackupService(uid: uid);
@@ -757,9 +719,19 @@ class _BackupRowState extends ConsumerState<_BackupRow> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        final msg = e.toString();
+        if (msg.contains('unauthorized') || msg.contains('permission')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error de permisos. Configurá las reglas de Firebase Storage en la consola.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $msg')),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -812,193 +784,56 @@ class _BackupRowState extends ConsumerState<_BackupRow> {
     final color = AppTheme.colorTransfer;
     return Container(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.12)),
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
-          ListTile(
-            leading: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.cloud_rounded, color: color, size: 18),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(Icons.cloud_rounded, color: color, size: 16),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Backup en la nube',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+                if (_loading)
+                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              ],
             ),
-            title: Text('Backup en la nube',
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-            subtitle: Text('Guardá y restaurá tus datos',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.white38)),
-            trailing: _loading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : null,
           ),
-          Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.04)),
           Row(
             children: [
               Expanded(
                 child: TextButton.icon(
                   onPressed: _loading ? null : _backup,
-                  icon: Icon(Icons.upload_rounded, size: 16, color: color),
-                  label: Text('Hacer backup', style: GoogleFonts.inter(fontSize: 13, color: color, fontWeight: FontWeight.w600)),
+                  icon: Icon(Icons.upload_rounded, size: 14, color: color),
+                  label: Text('Subir', style: GoogleFonts.inter(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
                 ),
               ),
-              Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.05)),
+              Container(width: 1, height: 28, color: Colors.white.withValues(alpha: 0.04)),
               Expanded(
                 child: TextButton.icon(
                   onPressed: _loading ? null : _restore,
-                  icon: const Icon(Icons.download_rounded, size: 16, color: Colors.white54),
-                  label: Text('Restaurar', style: GoogleFonts.inter(fontSize: 13, color: Colors.white54, fontWeight: FontWeight.w600)),
+                  icon: const Icon(Icons.download_rounded, size: 14, color: Colors.white54),
+                  label: Text('Restaurar', style: GoogleFonts.inter(fontSize: 12, color: Colors.white54, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Settings Row (List)
-// ─────────────────────────────────────────────
-Future<void> _launchUrl(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
-class _DonationRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _DonationRow({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.open_in_new_rounded,
-                color: Colors.white.withValues(alpha: 0.2), size: 16),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _SettingsRow({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded,
-                color: Colors.white.withValues(alpha: 0.2), size: 20),
-          ],
-        ),
       ),
     );
   }

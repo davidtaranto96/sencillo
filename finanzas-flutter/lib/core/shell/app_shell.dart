@@ -228,6 +228,18 @@ class _AppShellState extends ConsumerState<AppShell> {
           HapticFeedback.lightImpact();
           AddWishlistBottomSheet.show(context);
         };
+      case 'accounts':
+        fabIcon = Icons.add_rounded;
+        fabAction = () {
+          HapticFeedback.lightImpact();
+          context.push('/accounts');
+        };
+      case 'monthly_overview':
+      case 'reports':
+      case 'savings':
+      case 'more':
+        // No FAB en estas tabs
+        break;
     }
 
     return Scaffold(

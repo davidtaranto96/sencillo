@@ -21,42 +21,72 @@ class NovedadesPage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
-          // Current version
+          // v1.2.0
           _VersionCard(
             version: 'v1.2.0',
-            date: 'Abril 2026',
+            date: '5 Abr 2026',
             isCurrent: true,
             items: const [
-              _ChangeItem(icon: Icons.currency_exchange_rounded, text: 'Cotización del dólar en tiempo real con refresh manual', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.people_rounded, text: 'Sistema de amigos con QR y gastos compartidos', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.cloud_rounded, text: 'Backup en la nube con Firebase Storage', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.auto_awesome_rounded, text: 'Alertas inteligentes con snooze y descarte', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.play_circle_outline, text: 'Tutorial restablecible desde Configuración', type: _ChangeType.improvement),
-              _ChangeItem(icon: Icons.volunteer_activism_rounded, text: 'Sección de donaciones y links del proyecto', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.refresh_rounded, text: 'Cotización del dólar: botón refresh manual + auto-refresh cada 15 min', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.rocket_launch_rounded, text: 'Pantalla de Novedades con historial de versiones', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.volunteer_activism_rounded, text: 'Sección de donaciones: Cafecito, Mercado Pago, GitHub', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.play_circle_outline, text: 'Botón "Restablecer tutorial" en Configuración', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.auto_awesome_rounded, text: 'Onboarding: opción de cargar datos de ejemplo', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.animation_rounded, text: 'FAB: transición suave con AnimatedSwitcher entre tabs', type: _ChangeType.improvement),
             ],
           ),
 
+          // v1.1.0
           _VersionCard(
             version: 'v1.1.0',
-            date: 'Marzo 2026',
+            date: '3 Abr 2026',
             items: const [
-              _ChangeItem(icon: Icons.credit_card_rounded, text: 'Tarjetas de crédito con cierre y vencimiento', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.shopping_cart_rounded, text: 'Lista de deseos con recordatorios', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.bar_chart_rounded, text: 'Reportes y gráficos financieros', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.calendar_month_rounded, text: 'Resumen y cierre de mes', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.savings_rounded, text: 'Metas de ahorro con progreso visual', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.people_rounded, text: 'Sistema de amigos con QR y gastos compartidos', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.cloud_rounded, text: 'Backup y restauración en la nube (Firebase Storage)', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.notifications_active_rounded, text: 'Alertas inteligentes: presupuesto, metas, deudas', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.qr_code_rounded, text: 'Mi QR: compartí tu perfil y agregá amigos', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.currency_exchange_rounded, text: 'Widget de cotizaciones con conversor ARS ↔ USD', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.tab_rounded, text: 'Personalización del navbar: elegí y reordená pestañas', type: _ChangeType.improvement),
             ],
           ),
 
+          // v1.0.2
+          _VersionCard(
+            version: 'v1.0.2',
+            date: '2 Abr 2026',
+            items: const [
+              _ChangeItem(icon: Icons.credit_card_rounded, text: 'Tarjetas de crédito: cierre, vencimiento, resumen pendiente', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.shopping_cart_rounded, text: 'Lista de deseos con recordatorio configurable', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.bar_chart_rounded, text: 'Reportes: gráficos por categoría y tendencias', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.calendar_month_rounded, text: 'Resumen y cierre de mes con wizard', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.bug_report_rounded, text: 'Fix: formato de montos con separador de miles', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.undo_rounded, text: 'Fix: deshacer pagos y edición de transacciones', type: _ChangeType.fix),
+            ],
+          ),
+
+          // v1.0.1
+          _VersionCard(
+            version: 'v1.0.1',
+            date: '1 Abr 2026',
+            items: const [
+              _ChangeItem(icon: Icons.savings_rounded, text: 'Metas de ahorro con barra de progreso', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.person_rounded, text: 'Perfil: nombre, sueldo y día de cobro', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.auto_awesome_rounded, text: 'Parser IA de transacciones por texto natural', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.mic_rounded, text: 'Entrada por voz para registrar movimientos', type: _ChangeType.feature),
+            ],
+          ),
+
+          // v1.0.0
           _VersionCard(
             version: 'v1.0.0',
-            date: 'Febrero 2026',
+            date: '30 Mar 2026',
             items: const [
-              _ChangeItem(icon: Icons.rocket_launch_rounded, text: 'Lanzamiento de SENCILLO', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Dashboard con balance y cuentas', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.swap_horiz_rounded, text: 'CRUD de transacciones, cuentas y presupuestos', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.donut_large_rounded, text: 'Presupuesto por categoría', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.rocket_launch_rounded, text: 'Lanzamiento inicial de SENCILLO', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Dashboard con balance total y cuentas', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.swap_horiz_rounded, text: 'CRUD de transacciones con categorías', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.donut_large_rounded, text: 'Presupuesto por categoría con alertas', type: _ChangeType.feature),
               _ChangeItem(icon: Icons.login_rounded, text: 'Google Sign-In con Firebase Auth', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.school_rounded, text: 'Onboarding con slides de bienvenida', type: _ChangeType.feature),
             ],
           ),
 
@@ -98,6 +128,7 @@ class NovedadesPage extends StatelessWidget {
                 _RoadmapItem(text: 'Widgets de pantalla de inicio', icon: Icons.widgets_rounded),
                 _RoadmapItem(text: 'Sincronización multi-dispositivo', icon: Icons.sync_rounded),
                 _RoadmapItem(text: 'Modo claro / tema personalizable', icon: Icons.palette_rounded),
+                _RoadmapItem(text: 'Gastos recurrentes automáticos', icon: Icons.repeat_rounded),
               ],
             ),
           ),
@@ -195,18 +226,18 @@ class _VersionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 28,
-                      height: 28,
+                      width: 26,
+                      height: 26,
                       decoration: BoxDecoration(
                         color: item.type.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(7),
                       ),
-                      child: Icon(item.icon, size: 14, color: item.type.color),
+                      child: Icon(item.icon, size: 13, color: item.type.color),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.only(top: 3),
                         child: Text(
                           item.text,
                           style: GoogleFonts.inter(

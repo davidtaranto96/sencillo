@@ -10,6 +10,8 @@ enum NLScenario {
   goalContribution,  // guardé plata para un objetivo
   wishlistPurchase,  // compré algo de la lista de deseos
   internalTransfer,  // transferencia entre mis propias cuentas
+  createGoal,        // crear un nuevo objetivo de ahorro
+  createBudget,      // crear un nuevo presupuesto
   unclear,           // no se pudo interpretar
 }
 
@@ -26,6 +28,8 @@ class NLTransaction {
   final String? cardId;            // para cardPayment
   final String? goalId;
   final String? wishlistItemId;
+  final String? budgetCategoryId;    // para createBudget: categoryId predefinido
+  final String? deadlineRaw;         // para createGoal: fecha límite como string
   final bool isSplit;
   final double? splitOwnAmount;    // para sharedExpense: mi parte
   final double? splitOtherAmount;  // para sharedExpense: parte ajena
@@ -44,6 +48,8 @@ class NLTransaction {
     this.cardId,
     this.goalId,
     this.wishlistItemId,
+    this.budgetCategoryId,
+    this.deadlineRaw,
     this.isSplit = false,
     this.splitOwnAmount,
     this.splitOtherAmount,
@@ -74,6 +80,10 @@ class NLTransaction {
         return 'Compra de lista';
       case NLScenario.internalTransfer:
         return 'Transferencia propia';
+      case NLScenario.createGoal:
+        return 'Crear objetivo';
+      case NLScenario.createBudget:
+        return 'Crear presupuesto';
       case NLScenario.unclear:
         return 'No reconocido';
     }
@@ -91,6 +101,8 @@ class NLTransaction {
     String? cardId,
     String? goalId,
     String? wishlistItemId,
+    String? budgetCategoryId,
+    String? deadlineRaw,
     bool? isSplit,
     double? splitOwnAmount,
     double? splitOtherAmount,
@@ -109,6 +121,8 @@ class NLTransaction {
       cardId: cardId ?? this.cardId,
       goalId: goalId ?? this.goalId,
       wishlistItemId: wishlistItemId ?? this.wishlistItemId,
+      budgetCategoryId: budgetCategoryId ?? this.budgetCategoryId,
+      deadlineRaw: deadlineRaw ?? this.deadlineRaw,
       isSplit: isSplit ?? this.isSplit,
       splitOwnAmount: splitOwnAmount ?? this.splitOwnAmount,
       splitOtherAmount: splitOtherAmount ?? this.splitOtherAmount,

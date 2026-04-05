@@ -1,44 +1,66 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/database/database_providers.dart';
 import '../../core/providers/shell_providers.dart';
+import '../../core/providers/tab_config_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/dashboard/presentation/pages/home_page.dart';
 import '../../features/transactions/presentation/pages/transactions_page.dart';
+import '../../features/transactions/presentation/widgets/add_transaction_bottom_sheet.dart';
 import '../../features/budget/presentation/pages/budget_page.dart';
 import '../../features/budget/presentation/widgets/add_budget_bottom_sheet.dart';
 import '../../features/goals/presentation/pages/goals_page.dart';
 import '../../features/goals/presentation/widgets/add_goal_bottom_sheet.dart';
 import '../../features/more/presentation/pages/more_page.dart';
+import '../../features/monthly_overview/presentation/pages/monthly_overview_page.dart';
+import '../../features/people/presentation/pages/people_page.dart';
+import '../../features/wishlist/presentation/pages/wishlist_page.dart';
+import '../../features/wishlist/presentation/widgets/add_wishlist_bottom_sheet.dart';
+import '../../features/reports/presentation/pages/reports_page.dart';
+import '../../features/accounts/presentation/pages/accounts_page.dart';
+import '../../features/goals/presentation/pages/savings_page.dart';
+import '../widgets/app_fab.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
   const AppShell({super.key, required this.navigationShell});
 
-  static const tabs = [
-    _TabItem(path: '/home', label: 'Home', icon: Icons.home_rounded),
-    _TabItem(path: '/transactions', label: 'Movimientos', icon: Icons.swap_horiz_rounded),
-    _TabItem(path: '/budget', label: 'Presupuesto', icon: Icons.donut_large_rounded),
-    _TabItem(path: '/goals', label: 'Objetivos', icon: Icons.flag_rounded),
-    _TabItem(path: '/more', label: 'Más', icon: Icons.grid_view_rounded),
-  ];
-
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderStateMixin {
-  late final PageController _pageController;
+class _AppShellState extends ConsumerState<AppShell> {
+  late PageController _pageController;
   final TextEditingController _searchController = TextEditingController();
+  int _currentPage = 0;
+  List<String> _lastTabConfig = [];
+
+  /// Maps original tab IDs to their GoRouter branch index (only first 5)
+  static const _tabToBranch = <String, int>{
+    'home': 0,
+    'transactions': 1,
+    'budget': 2,
+    'goals': 3,
+    'more': 4,
+  };
+
+  static const _branchToTab = <int, String>{
+    0: 'home',
+    1: 'transactions',
+    2: 'budget',
+    3: 'goals',
+    4: 'more',
+  };
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: widget.navigationShell.currentIndex);
+    _pageController = PageController(initialPage: 0);
   }
 
   @override
@@ -51,26 +73,49 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
   @override
   void didUpdateWidget(AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.navigationShell.currentIndex != _pageController.page?.round()) {
-      _pageController.jumpToPage(widget.navigationShell.currentIndex);
+    // Sync PageView when router navigates externally (deep link)
+    final newBranch = widget.navigationShell.currentIndex;
+    final oldBranch = oldWidget.navigationShell.currentIndex;
+    if (newBranch != oldBranch) {
+      final tabId = _branchToTab[newBranch];
+      if (tabId != null) {
+        final enabledTabs = ref.read(tabConfigProvider);
+        final pageIdx = enabledTabs.indexOf(tabId);
+        if (pageIdx >= 0 && pageIdx != _currentPage) {
+          _pageController.jumpToPage(pageIdx);
+        }
+      }
     }
   }
 
   void _onPageChanged(int index) {
-    if (ref.read(txSearchActiveProvider)) {
+    setState(() => _currentPage = index);
+    final enabledTabs = ref.read(tabConfigProvider);
+    if (index >= enabledTabs.length) return;
+
+    final tabId = enabledTabs[index];
+
+    // Clear search when leaving transactions
+    if (tabId != 'transactions' && ref.read(txSearchActiveProvider)) {
       ref.read(txSearchActiveProvider.notifier).state = false;
       ref.read(txSearchQueryProvider.notifier).state = '';
       _searchController.clear();
     }
-    widget.navigationShell.goBranch(
-      index,
-      initialLocation: index == widget.navigationShell.currentIndex,
-    );
+
+    // Sync with GoRouter for the 5 original branch tabs
+    final branch = _tabToBranch[tabId];
+    if (branch != null) {
+      widget.navigationShell.goBranch(
+        branch,
+        initialLocation: branch == widget.navigationShell.currentIndex,
+      );
+    }
   }
 
-  void _onTap(int index) {
+  void _onTap(int pageIndex) {
+    HapticFeedback.selectionClick();
     _pageController.animateToPage(
-      index,
+      pageIndex,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOutCubicEmphasized,
     );
@@ -78,128 +123,233 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = widget.navigationShell.currentIndex;
+    final enabledTabIds = ref.watch(tabConfigProvider);
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    // nav bar: height 70 + bottomPadding+12 from screen bottom
-    // nav bar TOP = bottomPadding + 82
-    // FAB bottom = bottomPadding + 90 (8px gap above nav bar)
     final fabBottom = bottomPadding + 90.0;
-
+    final txSearchActive = ref.watch(txSearchActiveProvider);
     final budgets = ref.watch(budgetsStreamProvider).valueOrNull ?? [];
     final goals = ref.watch(goalsStreamProvider).valueOrNull ?? [];
-    final txSearchActive = ref.watch(txSearchActiveProvider);
+
+    // Handle tab config changes (user modified settings)
+    if (!_listEquals(enabledTabIds, _lastTabConfig)) {
+      _lastTabConfig = List.from(enabledTabIds);
+      if (_currentPage >= enabledTabIds.length) {
+        _currentPage = 0;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_pageController.hasClients) {
+            _pageController.jumpToPage(0);
+          }
+        });
+      }
+    }
+
+    // Handle external tab navigation requests via listener
+    ref.listen<String?>(navigateToTabProvider, (prev, next) {
+      if (next == null) return;
+      final idx = enabledTabIds.indexOf(next);
+      // Reset immediately so we don't re-trigger
+      Future.microtask(() => ref.read(navigateToTabProvider.notifier).state = null);
+      if (idx >= 0 && idx != _currentPage && _pageController.hasClients) {
+        _pageController.animateToPage(
+          idx,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOutCubicEmphasized,
+        );
+      } else if (idx < 0) {
+        // Tab not in navbar — push standalone page with back button + own FAB
+        final Widget standaloneWidget = switch (next) {
+          'people' => const PeoplePage(standalone: true),
+          _ => _pageForTab(next),
+        };
+        if (standaloneWidget is! SizedBox) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => standaloneWidget),
+          );
+        }
+      }
+    });
+
+    // Build visible tab items for nav bar
+    final visibleTabs = enabledTabIds
+        .map((id) => _TabItem(
+              id: id,
+              label: kTabInfo[id]!.label,
+              icon: kTabInfo[id]!.icon,
+            ))
+        .toList();
+
+    // Current tab info
+    final currentTabId =
+        _currentPage < enabledTabIds.length ? enabledTabIds[_currentPage] : 'home';
+
+    // ── FAB configuration based on current tab ──
+    IconData? fabIcon;
+    VoidCallback? fabAction;
+    VoidCallback? fabLongPress;
+
+    switch (currentTabId) {
+      case 'home':
+        fabIcon = Icons.auto_awesome_rounded;
+        fabAction = () => AddTransactionBottomSheet.show(context);
+        fabLongPress = () => AddTransactionBottomSheet.show(context, startWithVoice: true);
+      case 'transactions':
+        if (!txSearchActive) {
+          fabIcon = Icons.search_rounded;
+          fabAction = () {
+            HapticFeedback.lightImpact();
+            ref.read(txSearchActiveProvider.notifier).state = true;
+          };
+        }
+      case 'budget':
+        if (budgets.isNotEmpty) {
+          fabIcon = Icons.add_rounded;
+          fabAction = () {
+            HapticFeedback.lightImpact();
+            AddBudgetBottomSheet.show(context);
+          };
+        }
+      case 'goals':
+        if (goals.isNotEmpty) {
+          fabIcon = Icons.add_rounded;
+          fabAction = () {
+            HapticFeedback.lightImpact();
+            AddGoalBottomSheet.show(context);
+          };
+        }
+      case 'people':
+        fabIcon = Icons.add_rounded;
+        fabAction = () {
+          HapticFeedback.mediumImpact();
+          showPeopleFabMenu(context, ref);
+        };
+      case 'wishlist':
+        fabIcon = Icons.add_shopping_cart_rounded;
+        fabAction = () {
+          HapticFeedback.lightImpact();
+          AddWishlistBottomSheet.show(context);
+        };
+    }
 
     return Scaffold(
       extendBody: true,
       body: Stack(
         children: [
+          // ── PageView for swiping between tabs ──
           PageView(
             controller: _pageController,
             onPageChanged: _onPageChanged,
             physics: const BouncingScrollPhysics(),
-            children: const [
-              HomePage(),
-              TransactionsPage(),
-              BudgetPage(),
-              GoalsPage(),
-              MorePage(),
-            ],
+            children: enabledTabIds.map(_pageForTab).toList(),
           ),
 
-          // Tab 1 - Movimientos: search
-          if (currentIndex == 1)
-            Positioned(
-              right: txSearchActive ? 0 : 16,
-              left: txSearchActive ? 0 : null,
-              bottom: fabBottom,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                transitionBuilder: (child, anim) => FadeTransition(
-                  opacity: anim,
-                  child: ScaleTransition(scale: anim, child: child),
-                ),
-                child: txSearchActive
-                    ? Center(
-                        key: const ValueKey('search_bar'),
-                        child: _SearchBar(
-                          controller: _searchController,
-                          onClose: () {
-                            ref.read(txSearchActiveProvider.notifier).state = false;
-                            ref.read(txSearchQueryProvider.notifier).state = '';
-                            _searchController.clear();
-                          },
-                          onChanged: (v) =>
-                              ref.read(txSearchQueryProvider.notifier).state = v,
-                        ),
-                      )
-                    : _AppFab(
-                        key: const ValueKey('search_fab'),
-                        icon: Icons.search_rounded,
-                        onPressed: () =>
-                            ref.read(txSearchActiveProvider.notifier).state = true,
-                      ),
-              ),
-            ),
-
-          // Tab 2 - Presupuesto
-          if (currentIndex == 2 && budgets.isNotEmpty)
+          // ── Morphing FAB ──
+          if (fabIcon != null && fabAction != null)
             Positioned(
               right: 16,
               bottom: fabBottom,
-              child: _AppFab(
-                icon: Icons.add_rounded,
-                onPressed: () => AddBudgetBottomSheet.show(context),
+              child: AppFab(
+                icon: fabIcon,
+                onPressed: fabAction,
+                onLongPress: fabLongPress,
               ),
             ),
 
-          // Tab 3 - Objetivos
-          if (currentIndex == 3 && goals.isNotEmpty)
+          // ── Search bar (transactions tab only) ──
+          if (currentTabId == 'transactions' && txSearchActive)
             Positioned(
-              right: 16,
+              left: 0,
+              right: 0,
               bottom: fabBottom,
-              child: _AppFab(
-                icon: Icons.add_rounded,
-                onPressed: () => AddGoalBottomSheet.show(context),
+              child: _SearchBar(
+                controller: _searchController,
+                onClose: () {
+                  ref.read(txSearchActiveProvider.notifier).state = false;
+                  ref.read(txSearchQueryProvider.notifier).state = '';
+                  _searchController.clear();
+                },
+                onChanged: (v) =>
+                    ref.read(txSearchQueryProvider.notifier).state = v,
               ),
             ),
         ],
       ),
       bottomNavigationBar: Padding(
         padding: EdgeInsets.only(left: 16, right: 16, bottom: bottomPadding + 12),
-        child: _FloatingNavBar(
-          currentIndex: currentIndex,
-          tabs: AppShell.tabs,
-          onTap: _onTap,
+        child: GestureDetector(
+          // Swipe on nav bar to switch tabs
+          onHorizontalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity < -300 && _currentPage < enabledTabIds.length - 1) {
+              _pageController.nextPage(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+              );
+            } else if (velocity > 300 && _currentPage > 0) {
+              _pageController.previousPage(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+              );
+            }
+          },
+          child: _FloatingNavBar(
+            currentIndex: _currentPage,
+            tabs: visibleTabs,
+            onTap: _onTap,
+          ),
         ),
       ),
     );
   }
-}
 
-class _AppFab extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onPressed;
-  const _AppFab({super.key, required this.icon, required this.onPressed});
+  Widget _pageForTab(String tabId) {
+    switch (tabId) {
+      case 'home':
+        return const HomePage();
+      case 'transactions':
+        return const TransactionsPage();
+      case 'budget':
+        return const BudgetPage();
+      case 'goals':
+        return const GoalsPage();
+      case 'more':
+        return const MorePage();
+      case 'monthly_overview':
+        return const MonthlyOverviewPage();
+      case 'people':
+        return const PeoplePage();
+      case 'wishlist':
+        return const WishlistPage();
+      case 'reports':
+        return const ReportsPage();
+      case 'accounts':
+        return const AccountsPage();
+      case 'savings':
+        return const SavingsPage();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      heroTag: null,
-      onPressed: onPressed,
-      backgroundColor: AppTheme.colorTransfer,
-      foregroundColor: Colors.white,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Icon(icon, size: 28),
-    );
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 }
 
+// AppFab is defined in lib/core/widgets/app_fab.dart
+
+// ─────────────────────────────────────────────
+// Search Bar
+// ─────────────────────────────────────────────
 class _SearchBar extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onClose;
   final ValueChanged<String> onChanged;
-  const _SearchBar({required this.controller, required this.onClose, required this.onChanged});
+  const _SearchBar(
+      {required this.controller, required this.onClose, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -214,12 +364,14 @@ class _SearchBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E2C).withValues(alpha: 0.80),
               borderRadius: BorderRadius.circular(27),
-              border: Border.all(color: AppTheme.colorTransfer.withValues(alpha: 0.30)),
+              border: Border.all(
+                  color: AppTheme.colorTransfer.withValues(alpha: 0.30)),
             ),
             child: Row(
               children: [
                 const SizedBox(width: 16),
-                Icon(Icons.search_rounded, size: 18,
+                Icon(Icons.search_rounded,
+                    size: 18,
                     color: AppTheme.colorTransfer.withValues(alpha: 0.8)),
                 const SizedBox(width: 10),
                 Expanded(
@@ -227,10 +379,12 @@ class _SearchBar extends StatelessWidget {
                     controller: controller,
                     autofocus: true,
                     onChanged: onChanged,
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                    style:
+                        GoogleFonts.inter(fontSize: 14, color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Buscar movimientos...',
-                      hintStyle: GoogleFonts.inter(fontSize: 14, color: Colors.white38),
+                      hintStyle: GoogleFonts.inter(
+                          fontSize: 14, color: Colors.white38),
                       border: InputBorder.none,
                       isDense: true,
                     ),
@@ -239,9 +393,11 @@ class _SearchBar extends StatelessWidget {
                 GestureDetector(
                   onTap: onClose,
                   child: Container(
-                    width: 44, height: 54,
+                    width: 44,
+                    height: 54,
                     alignment: Alignment.center,
-                    child: const Icon(Icons.close_rounded, size: 18, color: Colors.white54),
+                    child: const Icon(Icons.close_rounded,
+                        size: 18, color: Colors.white54),
                   ),
                 ),
               ],
@@ -253,32 +409,49 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// Floating Nav Bar
+// ─────────────────────────────────────────────
 class _FloatingNavBar extends StatelessWidget {
   final int currentIndex;
   final List<_TabItem> tabs;
   final ValueChanged<int> onTap;
-  const _FloatingNavBar({required this.currentIndex, required this.tabs, required this.onTap});
+  const _FloatingNavBar(
+      {required this.currentIndex, required this.tabs, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final showLabels = tabs.length < 6;
     return ClipRRect(
       borderRadius: BorderRadius.circular(40),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
         child: Container(
-          height: 70,
+          height: showLabels ? 70 : 60,
           decoration: BoxDecoration(
-            color: const Color(0xFF18181F).withValues(alpha: 0.18),
+            color: const Color(0xFF18181F).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(40),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07), width: 0.8),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.04), width: 0.8),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, offset: const Offset(0, 10)),
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10)),
             ],
           ),
           child: Row(
-            children: tabs.asMap().entries.map((e) => Expanded(
-              child: _NavItem(tab: e.value, selected: e.key == currentIndex, onTap: () => onTap(e.key)),
-            )).toList(),
+            children: tabs
+                .asMap()
+                .entries
+                .map((e) => Expanded(
+                      child: _NavItem(
+                          tab: e.value,
+                          selected: e.key == currentIndex,
+                          showLabel: showLabels,
+                          onTap: () => onTap(e.key)),
+                    ))
+                .toList(),
           ),
         ),
       ),
@@ -286,17 +459,23 @@ class _FloatingNavBar extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// Nav Item
+// ─────────────────────────────────────────────
 class _NavItem extends StatefulWidget {
   final _TabItem tab;
   final bool selected;
+  final bool showLabel;
   final VoidCallback onTap;
-  const _NavItem({required this.tab, required this.selected, required this.onTap});
+  const _NavItem(
+      {required this.tab, required this.selected, this.showLabel = true, required this.onTap});
 
   @override
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
+class _NavItemState extends State<_NavItem>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scale;
 
@@ -312,10 +491,17 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   void _onTapDown(TapDownDetails _) => _controller.forward();
-  void _onTapUp(TapUpDetails _) { _controller.reverse(); widget.onTap(); }
+  void _onTapUp(TapUpDetails _) {
+    _controller.reverse();
+    widget.onTap();
+  }
+
   void _onTapCancel() => _controller.reverse();
 
   @override
@@ -327,19 +513,22 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
       onTapCancel: _onTapCancel,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        height: 70,
+        height: widget.showLabel ? 70 : 60,
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // Tap ripple circle
             AnimatedBuilder(
               animation: _scale,
               builder: (context, child) => Transform.scale(
                 scale: _scale.value,
                 child: Container(
-                  width: 56, height: 56,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.12 * _scale.value),
+                    color:
+                        Colors.white.withValues(alpha: 0.12 * _scale.value),
                   ),
                 ),
               ),
@@ -350,17 +539,50 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: Icon(widget.tab.icon,
-                    key: ValueKey(isSelected),
-                    size: isSelected ? 23 : 22,
-                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.38),
-                  ),
+                      key: ValueKey(isSelected),
+                      size: widget.showLabel
+                          ? (isSelected ? 24 : 22)
+                          : (isSelected ? 26 : 24),
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.32)),
                 ),
+                if (widget.showLabel) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.tab.label,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w400,
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.32),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 4),
-                Text(widget.tab.label,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.38),
+                // Active indicator bar with glow
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  width: isSelected ? 16 : 0,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.colorTransfer
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(1.5),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                                color: AppTheme.colorTransfer
+                                    .withValues(alpha: 0.5),
+                                blurRadius: 8)
+                          ]
+                        : [],
                   ),
                 ),
               ],
@@ -372,9 +594,13 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
   }
 }
 
+// ─────────────────────────────────────────────
+// Tab Item data
+// ─────────────────────────────────────────────
 class _TabItem {
-  final String path;
+  final String id;
   final String label;
   final IconData icon;
-  const _TabItem({required this.path, required this.label, required this.icon});
+  const _TabItem(
+      {required this.id, required this.label, required this.icon});
 }

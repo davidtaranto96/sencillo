@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:finanzas_app/app/app.dart';
+import 'package:fint/app/app.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {

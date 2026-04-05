@@ -28,6 +28,7 @@ class AddGoalBottomSheet extends ConsumerStatefulWidget {
 class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _targetController;
+  late final TextEditingController _savedController;
   DateTime? _deadline;
   String _selectedIconKey = 'flag';
   Color _selectedColor = AppTheme.colorTransfer;
@@ -54,7 +55,9 @@ class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
     final g = widget.goalToEdit;
     _nameController = TextEditingController(text: g?.name ?? '');
     _targetController = TextEditingController(
-        text: g != null ? g.targetAmount.toInt().toString() : '');
+        text: g != null ? formatInitialAmount(g.targetAmount) : '');
+    _savedController = TextEditingController(
+        text: g != null && g.savedAmount > 0 ? formatInitialAmount(g.savedAmount) : '');
     _deadline = g?.deadline;
     _selectedIconKey = g?.iconName ?? 'flag';
     _selectedColor = g != null ? Color(g.colorValue) : AppTheme.colorTransfer;
@@ -64,6 +67,7 @@ class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
   void dispose() {
     _nameController.dispose();
     _targetController.dispose();
+    _savedController.dispose();
     super.dispose();
   }
 
@@ -101,12 +105,16 @@ class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
     final service = ref.read(goalServiceProvider);
     final isEditing = widget.goalToEdit != null;
 
+    final savedText = _savedController.text.trim();
+    final savedAmount = savedText.isNotEmpty ? parseFormattedAmount(savedText) : null;
+
     try {
       if (isEditing) {
         await service.updateGoal(
           widget.goalToEdit!.id,
           name: name,
           targetAmount: amount,
+          currentAmount: savedAmount,
           colorValue: _selectedColor.toARGB32(),
           iconName: _selectedIconKey,
           deadline: _deadline,
@@ -134,16 +142,17 @@ class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
     final currentIcon = Goal.iconMap[_selectedIconKey] ?? Icons.flag_rounded;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, bottomPadding + 100),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, bottomPadding + 24),
       decoration: const BoxDecoration(
         color: Color(0xFF18181F),
         borderRadius: BorderRadius.only(
             topLeft: Radius.circular(32), topRight: Radius.circular(32)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Center(
             child: Container(
               width: 40,
@@ -265,6 +274,34 @@ class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Campo de monto ahorrado (solo en edición)
+          if (isEditing)
+            TextField(
+              controller: _savedController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorFormatter()],
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                prefixText: '\$ ',
+                labelText: 'Monto Ahorrado',
+                labelStyle: TextStyle(color: AppTheme.colorIncome.withValues(alpha: 0.8)),
+                helperText: 'Podés corregir el monto ahorrado actual',
+                helperStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 11),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppTheme.colorIncome.withValues(alpha: 0.3)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppTheme.colorIncome, width: 2),
+                ),
+              ),
+            ),
+          if (isEditing) const SizedBox(height: 16),
+
           InkWell(
             onTap: _pickDate,
             borderRadius: BorderRadius.circular(16),
@@ -323,6 +360,7 @@ class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

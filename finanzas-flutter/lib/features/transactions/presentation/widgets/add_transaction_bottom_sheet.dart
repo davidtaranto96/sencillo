@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../../../core/theme/app_theme.dart';
@@ -15,7 +16,11 @@ import '../../domain/models/transaction.dart';
 import '../../../accounts/domain/models/account.dart' as dom_acc;
 import '../../../people/domain/models/person.dart' as dom_p;
 import '../../../goals/presentation/providers/goals_provider.dart';
+import '../../../goals/domain/models/goal.dart';
+import '../../../../core/logic/goal_service.dart';
+import '../../../../core/logic/budget_service.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
+import '../../../../core/logic/wishlist_service.dart';
 
 // ─────────────────────────────────────────────────────────
 // Mapa de íconos y colores por categoría (compartido con tiles)
@@ -65,14 +70,15 @@ const Map<String, String> kCategoryEmojis = {
 };
 
 class AddTransactionBottomSheet extends ConsumerStatefulWidget {
-  const AddTransactionBottomSheet({super.key});
+  final bool startWithVoice;
+  const AddTransactionBottomSheet({super.key, this.startWithVoice = false});
 
-  static void show(BuildContext context) {
+  static void show(BuildContext context, {bool startWithVoice = false}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddTransactionBottomSheet(),
+      builder: (context) => AddTransactionBottomSheet(startWithVoice: startWithVoice),
     );
   }
 
@@ -87,9 +93,11 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
   // Manual form
   final _amountController = TextEditingController();
   final _titleController = TextEditingController();
+  final _noteController = TextEditingController();
   TransactionType _type = TransactionType.expense;
   String _selectedCategoryId = 'food';
   dom_acc.Account? _selectedAccount;
+  DateTime _manualDate = DateTime.now();
 
   // AI form
   final _aiController = TextEditingController();
@@ -119,6 +127,10 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
       },
     );
     if (mounted) setState(() {});
+    // Auto-start voice if requested
+    if (widget.startWithVoice && _speechAvailable && mounted) {
+      _toggleListening();
+    }
   }
 
   @override
@@ -126,6 +138,7 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
     _speech.stop();
     _amountController.dispose();
     _titleController.dispose();
+    _noteController.dispose();
     _aiController.dispose();
     super.dispose();
   }
@@ -181,7 +194,8 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
     final accounts = ref.read(accountsStreamProvider).value ?? [];
     final people = ref.read(peopleStreamProvider).value ?? [];
     final goals = ref.read(activeGoalsProvider);
-    final wishlist = ref.read(mockWishlistProvider);
+    final budgets = ref.read(budgetsStreamProvider).valueOrNull ?? [];
+    final wishlist = ref.read(activeWishlistProvider).valueOrNull ?? [];
 
     try {
       final result = await ref.read(aiTransactionParserProvider).parse(
@@ -189,6 +203,7 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
         accounts: accounts,
         people: people,
         goals: goals,
+        budgets: budgets,
         wishlist: wishlist,
       );
 
@@ -214,7 +229,9 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
   // ─────────────────────────────────────────────
   Future<void> _confirmParsed(NLTransaction tx) async {
     final amount = tx.amount ?? 0;
-    if (amount <= 0) {
+
+    // createGoal y createBudget no requieren monto obligatorio
+    if (amount <= 0 && tx.scenario != NLScenario.createGoal && tx.scenario != NLScenario.createBudget) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se detectó un monto válido')),
       );
@@ -229,6 +246,58 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
 
     try {
       switch (tx.scenario) {
+        case NLScenario.createGoal:
+          final name = tx.title ?? 'Nuevo objetivo';
+          await ref.read(goalServiceProvider).addGoal(
+            name: name,
+            targetAmount: amount > 0 ? amount : 0,
+            colorValue: AppTheme.colorTransfer.toARGB32(),
+            iconName: 'flag',
+            deadline: null,
+          );
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Objetivo "$name" creado${amount > 0 ? ' por ${formatAmount(amount)}' : ''}'),
+                backgroundColor: AppTheme.colorTransfer.withValues(alpha: 0.8),
+              ),
+            );
+          }
+          return;
+
+        case NLScenario.createBudget:
+          final name = tx.title ?? 'Nuevo presupuesto';
+          final catId = tx.budgetCategoryId;
+          if (catId != null) {
+            await ref.read(budgetServiceProvider).addBudgetForCategory(
+              categoryId: catId,
+              categoryName: name,
+              limitAmount: amount > 0 ? amount : 0,
+              isFixed: false,
+              colorValue: AppTheme.colorWarning.toARGB32(),
+              iconKey: 'receipt_long',
+            );
+          } else {
+            await ref.read(budgetServiceProvider).addBudget(
+              categoryName: name,
+              limitAmount: amount > 0 ? amount : 0,
+              isFixed: false,
+              colorValue: AppTheme.colorWarning.toARGB32(),
+              iconKey: 'receipt_long',
+            );
+          }
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Presupuesto "$name" creado${amount > 0 ? ' por ${formatAmount(amount)}' : ''}'),
+                backgroundColor: AppTheme.colorWarning.withValues(alpha: 0.8),
+              ),
+            );
+          }
+          return;
+
         case NLScenario.expense:
         case NLScenario.goalContribution:
         case NLScenario.wishlistPurchase:
@@ -241,8 +310,19 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
             accountId: accountId,
             note: tx.note ?? tx.rawInput,
           );
+          if (tx.scenario == NLScenario.goalContribution && tx.goalId != null) {
+            // Actualizar el objetivo con el monto ahorrado
+            final goals = ref.read(activeGoalsProvider);
+            final goal = goals.where((g) => g.id == tx.goalId).firstOrNull;
+            if (goal != null) {
+              final newSaved = goal.savedAmount + amount;
+              await ref.read(goalServiceProvider).updateGoal(
+                tx.goalId!, currentAmount: newSaved,
+              );
+            }
+          }
           if (tx.scenario == NLScenario.wishlistPurchase && tx.wishlistItemId != null) {
-            ref.read(mockWishlistProvider.notifier).markAsPurchased(tx.wishlistItemId!);
+            await ref.read(wishlistServiceProvider).markAsPurchased(tx.wishlistItemId!, method: 'account');
           }
           break;
 
@@ -445,6 +525,8 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
       type: typeStr,
       categoryId: _selectedCategoryId,
       accountId: _selectedAccount!.id,
+      note: _noteController.text.isNotEmpty ? _noteController.text : null,
+      date: _manualDate,
     );
     if (mounted) Navigator.pop(context);
   }
@@ -461,7 +543,9 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
     }
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 100),
+      constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 40),
       decoration: const BoxDecoration(
         color: Color(0xFF18181F),
         borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
@@ -572,19 +656,29 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
 
         const SizedBox(height: 16),
 
-        // Ejemplos de uso
+        // Ejemplos de uso — scroll horizontal
         if (!_showConfirmation && !_isAnalyzing) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _ExampleChip('Pagué 4500 de sushi', _aiController, () => setState(() {})),
-              _ExampleChip('Cobré el sueldo 200k en MP', _aiController, () => setState(() {})),
-              _ExampleChip('Presté 10k a Juan', _aiController, () => setState(() {})),
-              _ExampleChip('Dividí el taxi con María, 3600 en total', _aiController, () => setState(() {})),
-              _ExampleChip('Le devolví 5k a Pedro', _aiController, () => setState(() {})),
-              _ExampleChip('Pasé 50k del Visa al MP', _aiController, () => setState(() {})),
-            ],
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              children: [
+                _ExampleChip('Pagué 4500 de sushi', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Cobré el sueldo 200k', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Ahorré 50k para viaje', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Crear objetivo Notebook 800k', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Nuevo presupuesto comida 150k', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Presté 10k a Juan', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Dividí taxi con María 3600', _aiController, () => setState(() {})),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -632,88 +726,176 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Amount
         TextField(
           controller: _amountController,
           keyboardType: TextInputType.number,
           inputFormatters: [ThousandsSeparatorFormatter()],
           autofocus: true,
-          style: GoogleFonts.inter(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white),
+          style: GoogleFonts.inter(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white),
           decoration: const InputDecoration(
             hintText: '0',
             hintStyle: TextStyle(color: Colors.white10),
             prefixText: r'$ ',
+            prefixStyle: TextStyle(color: Colors.white24, fontSize: 30),
             border: InputBorder.none,
           ),
         ),
         const SizedBox(height: 8),
         _TypeSelector(current: _type, onChanged: (val) => setState(() => _type = val)),
+        const SizedBox(height: 8),
+
+        // Title
         TextField(
           controller: _titleController,
           style: const TextStyle(color: Colors.white, fontSize: 16),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: '¿En qué se gastó?',
-            hintStyle: TextStyle(color: Colors.white38),
+            hintStyle: const TextStyle(color: Colors.white38),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(Icons.edit_outlined, color: Colors.white24, size: 18),
+            ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 26),
             border: InputBorder.none,
           ),
         ),
-        const SizedBox(height: 16),
-        if (accounts.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white10),
-              borderRadius: BorderRadius.circular(12),
+
+        // Note (optional)
+        TextField(
+          controller: _noteController,
+          style: const TextStyle(color: Colors.white60, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Nota (opcional)',
+            hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(Icons.sticky_note_2_outlined, color: Colors.white24, size: 16),
             ),
-            child: DropdownButton<dom_acc.Account>(
-              value: _selectedAccount,
-              isExpanded: true,
-              dropdownColor: const Color(0xFF1E1E2C),
-              style: const TextStyle(color: Colors.white),
-              underline: const SizedBox(),
-              items: accounts.map((a) => DropdownMenuItem(
-                value: a,
+            prefixIconConstraints: const BoxConstraints(minWidth: 26),
+            border: InputBorder.none,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Date + Account row
+        Row(
+          children: [
+            // Date picker
+            GestureDetector(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _manualDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now().add(const Duration(days: 1)),
+                  builder: (ctx, child) => Theme(
+                    data: ThemeData.dark().copyWith(
+                      colorScheme: const ColorScheme.dark(
+                        primary: AppTheme.colorTransfer,
+                        surface: Color(0xFF1E1E2C),
+                      ),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (date != null) setState(() => _manualDate = date);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.account_balance_wallet_outlined, size: 16, color: cs.primary),
-                    const SizedBox(width: 8),
-                    Text(a.name),
+                    Icon(Icons.calendar_today_rounded, color: Colors.white38, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isToday(_manualDate) ? 'Hoy' : DateFormat('d MMM', 'es').format(_manualDate),
+                      style: GoogleFonts.inter(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
-              )).toList(),
-              onChanged: (val) => setState(() => _selectedAccount = val),
+              ),
             ),
-          ),
-        const SizedBox(height: 20),
-        Text('Categoría', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
-        const SizedBox(height: 12),
+            const SizedBox(width: 8),
+            // Account selector
+            if (accounts.isNotEmpty)
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: DropdownButton<dom_acc.Account>(
+                    value: _selectedAccount,
+                    isExpanded: true,
+                    dropdownColor: const Color(0xFF1E1E2C),
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                    underline: const SizedBox(),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white38, size: 18),
+                    items: accounts.map((a) => DropdownMenuItem(
+                      value: a,
+                      child: Row(
+                        children: [
+                          Icon(
+                            a.isCreditCard ? Icons.credit_card_rounded : Icons.account_balance_wallet_outlined,
+                            size: 14,
+                            color: AppTheme.colorTransfer,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(child: Text(a.name, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                    )).toList(),
+                    onChanged: (val) => setState(() => _selectedAccount = val),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Category
+        Text('Categoría', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
         SizedBox(
-          height: 90,
+          height: 82,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             children: kCategoryEmojis.entries.map((entry) {
               final isSelected = _selectedCategoryId == entry.key;
               return Padding(
-                padding: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.only(right: 10),
                 child: InkWell(
                   onTap: () => setState(() => _selectedCategoryId = entry.key),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   child: Column(
                     children: [
                       Container(
-                        width: 56,
-                        height: 56,
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
                           color: isSelected ? AppTheme.colorTransfer.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isSelected ? AppTheme.colorTransfer : Colors.transparent),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected ? AppTheme.colorTransfer : Colors.transparent,
+                            width: 1.5,
+                          ),
                         ),
                         alignment: Alignment.center,
-                        child: Text(entry.value, style: const TextStyle(fontSize: 24)),
+                        child: Text(entry.value, style: const TextStyle(fontSize: 22)),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        entry.key.split('_').first,
-                        style: TextStyle(color: isSelected ? Colors.white : Colors.white38, fontSize: 10),
+                        _categoryLabel(entry.key),
+                        style: TextStyle(color: isSelected ? Colors.white : Colors.white38, fontSize: 9),
                       ),
                     ],
                   ),
@@ -722,21 +904,51 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
             }).toList(),
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
-          height: 56,
+          height: 52,
           child: FilledButton(
             onPressed: _saveManualTransaction,
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.colorTransfer,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            child: const Text('Guardar Movimiento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            child: const Text('Guardar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ),
         ),
       ],
     );
+  }
+
+  bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  static String _categoryLabel(String key) {
+    const labels = {
+      'food': 'Comida',
+      'transport': 'Transp.',
+      'health': 'Salud',
+      'entertainment': 'Ocio',
+      'shopping': 'Compras',
+      'home': 'Hogar',
+      'education': 'Educ.',
+      'services': 'Serv.',
+      'salary': 'Sueldo',
+      'freelance': 'Freelance',
+      'transfer': 'Transf.',
+      'cat_alim': 'Aliment.',
+      'cat_transp': 'Nafta',
+      'cat_entret': 'Juegos',
+      'cat_salud': 'Salud',
+      'cat_financial': 'Finanzas',
+      'cat_peer_to_peer': 'Personas',
+      'other_expense': 'Otro',
+      'other_income': 'Ingreso',
+    };
+    return labels[key] ?? key;
   }
 }
 
@@ -768,7 +980,9 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
   late TextEditingController _titleCtrl;
   dom_acc.Account? _selectedAccount;
   dom_acc.Account? _selectedTargetAccount;
+  dom_acc.Account? _selectedCard;
   dom_p.Person? _selectedPerson;
+  Goal? _selectedGoal;
 
   // Scenarios that involve a person
   static const _personScenarios = {
@@ -801,18 +1015,35 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
       );
     }
 
+    // Pre-select card for cardPayment
+    if (_tx.scenario == NLScenario.cardPayment && _tx.cardId != null && widget.accounts.isNotEmpty) {
+      _selectedCard = widget.accounts.where((a) => a.id == _tx.cardId).firstOrNull;
+      // For card payment, source account should be non-credit
+      if (_selectedAccount?.isCreditCard == true) {
+        _selectedAccount = widget.accounts.where((a) => !a.isCreditCard).firstOrNull;
+      }
+    }
+
     // Pre-select person from parsed result
     if (_tx.personId != null && widget.people.isNotEmpty) {
       try {
         _selectedPerson = widget.people.firstWhere((p) => p.id == _tx.personId);
       } catch (_) {}
     }
+
+    // Pre-select goal for goalContribution
+    if (_tx.scenario == NLScenario.goalContribution && _tx.goalId != null) {
+      final goals = ref.read(activeGoalsProvider);
+      _selectedGoal = goals.where((g) => g.id == _tx.goalId).firstOrNull;
+    }
   }
 
   NLTransaction get _finalTx => _tx.copyWith(
         accountId: _selectedAccount?.id,
         targetAccountId: _selectedTargetAccount?.id,
+        cardId: _selectedCard?.id,
         personId: _selectedPerson?.id,
+        goalId: _selectedGoal?.id,
       );
 
   @override
@@ -828,6 +1059,7 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
       case NLScenario.loanReceived:
         return AppTheme.colorIncome;
       case NLScenario.cardPayment:
+      case NLScenario.createBudget:
         return AppTheme.colorWarning;
       case NLScenario.loanGiven:
       case NLScenario.expense:
@@ -836,6 +1068,7 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
       case NLScenario.goalContribution:
       case NLScenario.wishlistPurchase:
       case NLScenario.internalTransfer:
+      case NLScenario.createGoal:
         return AppTheme.colorTransfer;
       case NLScenario.sharedExpense:
         return Colors.orange;
@@ -866,6 +1099,10 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
         return Icons.flag_rounded;
       case NLScenario.wishlistPurchase:
         return Icons.shopping_cart_checkout_rounded;
+      case NLScenario.createGoal:
+        return Icons.emoji_events_rounded;
+      case NLScenario.createBudget:
+        return Icons.donut_large_rounded;
       default:
         return Icons.help_outline_rounded;
     }
@@ -874,6 +1111,23 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
   String? _accountName(String? id) {
     if (id == null) return null;
     return widget.accounts.firstWhere((a) => a.id == id, orElse: () => widget.accounts.first).name;
+  }
+
+  /// Returns a human-readable category name. For predefined categories
+  /// uses the label map; for UUID-based (custom budget) categories, uses
+  /// the title from the parsed transaction which already has the budget name.
+  String _categoryDisplayName(String categoryId) {
+    const labels = {
+      'food': 'Comida', 'transport': 'Transporte', 'health': 'Salud',
+      'entertainment': 'Ocio', 'shopping': 'Compras', 'home': 'Hogar',
+      'education': 'Educación', 'services': 'Servicios', 'salary': 'Sueldo',
+      'freelance': 'Freelance', 'transfer': 'Transferencia',
+      'cat_financial': 'Financiero', 'cat_peer_to_peer': 'Personas',
+      'other_expense': 'Otros', 'other_income': 'Ingreso',
+    };
+    if (labels.containsKey(categoryId)) return labels[categoryId]!;
+    // For UUID-based categories (custom budgets), use the parsed title
+    return _tx.title ?? categoryId.split('-').first;
   }
 
   @override
@@ -962,7 +1216,7 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
             runSpacing: 4,
             children: [
               if (_tx.categoryId != null)
-                _InfoChip('${kCategoryEmojis[_tx.categoryId] ?? '📌'} ${_tx.categoryId!.split('_').first}', color),
+                _InfoChip('${kCategoryEmojis[_tx.categoryId] ?? '📌'} ${_categoryDisplayName(_tx.categoryId!)}', color),
               if (_accountName(_tx.cardId) != null)
                 _InfoChip('💳 ${_accountName(_tx.cardId)}', Colors.white38),
             ],
@@ -970,8 +1224,44 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
 
           const SizedBox(height: 12),
 
-          // Selector de cuenta (siempre visible, excepto cardPayment)
-          if (_tx.scenario != NLScenario.cardPayment && widget.accounts.isNotEmpty) ...[
+          // Selector de tarjeta + cuenta origen para cardPayment
+          if (_tx.scenario == NLScenario.cardPayment && widget.accounts.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.colorWarning.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.colorWarning.withValues(alpha: 0.12)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('💳 Tarjeta a pagar:', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  _AccountDropdown(
+                    accounts: widget.accounts.where((a) => a.isCreditCard).toList(),
+                    value: _selectedCard ?? widget.accounts.where((a) => a.id == _tx.cardId).cast<dom_acc.Account?>().firstOrNull,
+                    onChanged: (a) => setState(() => _selectedCard = a),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('🏦 Pagás desde:', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  _AccountDropdown(
+                    accounts: widget.accounts.where((a) => !a.isCreditCard).toList(),
+                    value: _selectedAccount,
+                    onChanged: (a) => setState(() => _selectedAccount = a),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Selector de cuenta (no para cardPayment, createGoal, createBudget)
+          if (_tx.scenario != NLScenario.cardPayment &&
+              _tx.scenario != NLScenario.createGoal &&
+              _tx.scenario != NLScenario.createBudget &&
+              widget.accounts.isNotEmpty) ...[
             Text(
               _tx.scenario == NLScenario.internalTransfer ? 'Cuenta origen:' : 'Cuenta:',
               style: const TextStyle(color: Colors.white38, fontSize: 11),
@@ -1035,6 +1325,120 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
             const SizedBox(height: 8),
           ],
 
+          // Selector de objetivo para goalContribution
+          if (_tx.scenario == NLScenario.goalContribution) ...[
+            const Text('Objetivo:', style: TextStyle(color: Colors.white38, fontSize: 11)),
+            const SizedBox(height: 4),
+            Builder(
+              builder: (context) {
+                final goals = ref.watch(activeGoalsProvider);
+                if (goals.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text('No tenés objetivos activos',
+                        style: TextStyle(color: Colors.white38, fontSize: 12)),
+                  );
+                }
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: DropdownButton<Goal>(
+                    value: _selectedGoal,
+                    isExpanded: true,
+                    dropdownColor: const Color(0xFF1E1E2C),
+                    underline: const SizedBox(),
+                    hint: const Text('Seleccioná un objetivo',
+                        style: TextStyle(color: Colors.white38, fontSize: 13)),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    items: goals.map((g) => DropdownMenuItem(
+                      value: g,
+                      child: Row(
+                        children: [
+                          Icon(g.icon, size: 14, color: g.color),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(g.name, overflow: TextOverflow.ellipsis)),
+                          Text(
+                            '${(g.progress * 100).toInt()}%',
+                            style: TextStyle(color: g.color, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    )).toList(),
+                    onChanged: (g) => setState(() {
+                      _selectedGoal = g;
+                      if (g != null) {
+                        _tx = _tx.copyWith(goalId: g.id);
+                        _titleCtrl.text = 'Ahorro: ${g.name}';
+                        _tx = _tx.copyWith(title: _titleCtrl.text);
+                      }
+                    }),
+                  ),
+                );
+              },
+            ),
+            if (_selectedGoal != null) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _selectedGoal!.color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      '${((_selectedGoal!.progress) * 100).toInt()}% completado',
+                      style: TextStyle(color: _selectedGoal!.color, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                    const Text(' — ', style: TextStyle(color: Colors.white24, fontSize: 11)),
+                    Text(
+                      'Faltan ${formatAmount(_selectedGoal!.remaining, compact: true)}',
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+
+          // Info para createGoal / createBudget
+          if (_tx.scenario == NLScenario.createGoal || _tx.scenario == NLScenario.createBudget) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _tx.scenario == NLScenario.createGoal ? Icons.info_outline_rounded : Icons.info_outline_rounded,
+                    size: 16,
+                    color: color.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _tx.scenario == NLScenario.createGoal
+                          ? 'Se creará un nuevo objetivo de ahorro. Después podés editarlo para agregar ícono, color y fecha.'
+                          : 'Se creará un nuevo presupuesto mensual. Después podés editarlo desde la sección Presupuesto.',
+                      style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
           const SizedBox(height: 8),
 
           // Botones
@@ -1063,7 +1467,12 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
                     backgroundColor: color,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Confirmar →', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    _tx.scenario == NLScenario.createGoal ? 'Crear Objetivo →'
+                      : _tx.scenario == NLScenario.createBudget ? 'Crear Presupuesto →'
+                      : 'Confirmar →',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],

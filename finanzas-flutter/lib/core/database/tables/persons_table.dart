@@ -7,6 +7,8 @@ class PersonsTable extends Table {
   TextColumn get alias => text().nullable()();
   IntColumn get colorValue => integer()();
   RealColumn get totalBalance => real().withDefault(const Constant(0.0))();
+  TextColumn get cbu => text().nullable()();
+  TextColumn get notes => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

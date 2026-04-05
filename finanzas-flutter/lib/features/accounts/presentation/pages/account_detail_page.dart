@@ -103,6 +103,15 @@ class AccountDetailPage extends ConsumerWidget {
 
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
+                  // --- Cuotas pendientes (solo tarjetas de crédito) ---
+                  if (account.isCreditCard)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      sliver: SliverToBoxAdapter(
+                        child: _InstallmentsCard(transactions: accountTxs),
+                      ),
+                    ),
+
                   // --- Historial ---
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -974,6 +983,177 @@ class _TransactionDetailTile extends StatelessWidget {
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cuotas pendientes
+// ─────────────────────────────────────────────────────────────────────────────
+class _InstallmentsCard extends StatelessWidget {
+  final List<dom_tx.Transaction> transactions;
+  const _InstallmentsCard({required this.transactions});
+
+  @override
+  Widget build(BuildContext context) {
+    final pattern = RegExp(r'Cuota (\d+)/(\d+)');
+
+    // Group installment transactions by (title, total) to identify each purchase
+    // Key: "title|total"
+    final Map<String, _InstallmentGroup> groups = {};
+
+    for (final tx in transactions) {
+      if (tx.note == null) continue;
+      final match = pattern.firstMatch(tx.note!);
+      if (match == null) continue;
+
+      final current = int.tryParse(match.group(1)!) ?? 0;
+      final total = int.tryParse(match.group(2)!) ?? 0;
+      final key = '${tx.title}|$total';
+
+      final existing = groups[key];
+      if (existing == null || current > existing.latestInstallment) {
+        groups[key] = _InstallmentGroup(
+          title: tx.title,
+          total: total,
+          latestInstallment: current,
+          monthlyAmount: tx.amount,
+          latestDate: tx.date,
+        );
+      }
+    }
+
+    // Only show purchases with remaining installments
+    final active = groups.values.where((g) => g.remaining > 0).toList()
+      ..sort((a, b) => b.totalRemainingAmount.compareTo(a.totalRemainingAmount));
+
+    if (active.isEmpty) return const SizedBox.shrink();
+
+    final totalRemaining = active.fold(0.0, (sum, g) => sum + g.totalRemainingAmount);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.credit_card_rounded, color: AppTheme.colorTransfer, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Cuotas pendientes',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  formatAmount(totalRemaining),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.colorExpense,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+          ...active.map((g) => _InstallmentRow(group: g)),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstallmentGroup {
+  final String title;
+  final int total;
+  final int latestInstallment;
+  final double monthlyAmount;
+  final DateTime latestDate;
+
+  const _InstallmentGroup({
+    required this.title,
+    required this.total,
+    required this.latestInstallment,
+    required this.monthlyAmount,
+    required this.latestDate,
+  });
+
+  int get remaining => total - latestInstallment;
+  double get totalRemainingAmount => remaining * monthlyAmount;
+}
+
+class _InstallmentRow extends StatelessWidget {
+  final _InstallmentGroup group;
+  const _InstallmentRow({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = group.latestInstallment / group.total;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  group.title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${group.remaining} cuotas · ${formatAmount(group.monthlyAmount)}/mes',
+                style: GoogleFonts.inter(fontSize: 11, color: Colors.white38),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 4,
+              backgroundColor: Colors.white10,
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.colorTransfer),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Cuota ${group.latestInstallment}/${group.total}',
+                style: const TextStyle(fontSize: 10, color: Colors.white30),
+              ),
+              Text(
+                'Total restante: ${formatAmount(group.totalRemainingAmount)}',
+                style: TextStyle(fontSize: 10, color: AppTheme.colorExpense.withValues(alpha: 0.7)),
+              ),
+            ],
           ),
         ],
       ),

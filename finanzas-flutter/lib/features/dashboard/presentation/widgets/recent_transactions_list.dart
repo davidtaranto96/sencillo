@@ -36,7 +36,10 @@ class _TransactionTile extends StatelessWidget {
     final isIncome = transaction.type == TransactionType.income || transaction.type == TransactionType.loanReceived;
     final color = colorForType(transaction.type);
     final emoji = kCategoryEmojis[transaction.categoryId] ?? _emojiForType(transaction.type);
-    final displayAmount = transaction.isShared ? transaction.realExpense : transaction.amount;
+    // For shared expenses show the TOTAL paid — the person owes you back their portion
+    final displayAmount = transaction.isShared
+        ? (transaction.sharedTotalAmount ?? transaction.amount)
+        : transaction.amount;
 
     return InkWell(
       onTap: () => context.push('/transactions/${transaction.id}'),
@@ -109,9 +112,9 @@ class _TransactionTile extends StatelessWidget {
                   '${isIncome ? '+' : '-'}${formatAmount(displayAmount)}',
                   style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: color),
                 ),
-                if (transaction.isShared && transaction.pendingToRecover > 0)
+                if (transaction.isShared && (transaction.sharedOtherAmount ?? 0) > 0)
                   Text(
-                    '↩ ${formatAmount(transaction.pendingToRecover, compact: true)}',
+                    'Prestado: ${formatAmount(transaction.sharedOtherAmount!, compact: true)}',
                     style: GoogleFonts.inter(fontSize: 9, color: AppTheme.colorWarning),
                   ),
               ],

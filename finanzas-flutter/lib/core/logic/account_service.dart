@@ -20,25 +20,19 @@ class AccountService {
   }) async {
     final txId = const Uuid().v4();
     await db.transaction(() async {
-      // 1. Get current balances
-      final source = await (db.select(db.accountsTable)..where((t) => t.id.equals(sourceAccountId))).getSingle();
+      // 1. Get card to update pending debt
       final card = await (db.select(db.accountsTable)..where((t) => t.id.equals(cardAccountId))).getSingle();
 
-      // 2. Update source account (debit)
-      await (db.update(db.accountsTable)..where((t) => t.id.equals(sourceAccountId))).write(
-        AccountsTableCompanion(
-          initialBalance: drift.Value(source.initialBalance - amount),
-        ),
-      );
-
-      // 3. Update card account (reduce pending debt)
+      // 2. Update card account (reduce pending debt)
       await (db.update(db.accountsTable)..where((t) => t.id.equals(cardAccountId))).write(
         AccountsTableCompanion(
           pendingStatementAmount: drift.Value(card.pendingStatementAmount - amount),
         ),
       );
 
-      // 4. Record the transaction
+      // 3. Record the transfer transaction
+      // Note: accountsStreamProvider already subtracts 'transfer' txs from source balance,
+      // so we do NOT modify initialBalance on the source account.
       await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
         id: txId,
         title: 'Pago Tarjeta: ${card.name}',
@@ -61,15 +55,7 @@ class AccountService {
     required String transactionId,
   }) async {
     await db.transaction(() async {
-      final source = await (db.select(db.accountsTable)..where((t) => t.id.equals(sourceAccountId))).getSingle();
       final card = await (db.select(db.accountsTable)..where((t) => t.id.equals(cardAccountId))).getSingle();
-
-      // Restore source balance
-      await (db.update(db.accountsTable)..where((t) => t.id.equals(sourceAccountId))).write(
-        AccountsTableCompanion(
-          initialBalance: drift.Value(source.initialBalance + amount),
-        ),
-      );
 
       // Restore card pending debt
       await (db.update(db.accountsTable)..where((t) => t.id.equals(cardAccountId))).write(
@@ -78,7 +64,9 @@ class AccountService {
         ),
       );
 
-      // Delete the transfer transaction
+      // Delete the transfer transaction — this automatically restores
+      // the source account balance since accountsStreamProvider recalculates
+      // balance from initialBalance + transactions.
       await (db.delete(db.transactionsTable)..where((t) => t.id.equals(transactionId))).go();
     });
   }
@@ -88,6 +76,8 @@ class AccountService {
   Future<ImportResult> importStatementTransactions({
     required String cardAccountId,
     required List<ParsedTransaction> transactions,
+    String? fileName,
+    String? cardFormat,
   }) async {
     final selected = transactions.where((t) => t.isSelected).toList();
     if (selected.isEmpty) {
@@ -98,6 +88,7 @@ class AccountService {
     }
 
     late String cardName;
+    final txIds = <String>[];
 
     await db.transaction(() async {
       final card = await (db.select(db.accountsTable)
@@ -107,9 +98,11 @@ class AccountService {
 
       // Insertar cada transacción seleccionada
       for (final tx in selected) {
+        final txId = const Uuid().v4();
+        txIds.add(txId);
         final note = tx.isInstallment ? tx.installmentLabel : null;
         await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
-          id: const Uuid().v4(),
+          id: txId,
           title: tx.description,
           amount: tx.amount,
           type: 'expense',
@@ -133,7 +126,41 @@ class AccountService {
       imported: selected.length,
       total: transactions.length,
       cardName: cardName,
+      transactionIds: txIds,
     );
+  }
+
+  /// Deshace una importación completa eliminando todas las transacciones del lote
+  /// y actualizando el pendingStatementAmount de la tarjeta.
+  Future<void> undoImportBatch({
+    required String cardAccountId,
+    required List<String> transactionIds,
+  }) async {
+    if (transactionIds.isEmpty) return;
+
+    await db.transaction(() async {
+      // Obtener montos de las transacciones a eliminar
+      final txRows = await (db.select(db.transactionsTable)
+            ..where((t) => t.id.isIn(transactionIds)))
+          .get();
+      final totalAmount = txRows.fold(0.0, (sum, t) => sum + t.amount);
+
+      // Eliminar transacciones
+      await (db.delete(db.transactionsTable)
+            ..where((t) => t.id.isIn(transactionIds)))
+          .go();
+
+      // Actualizar pendingStatementAmount
+      final card = await (db.select(db.accountsTable)
+            ..where((t) => t.id.equals(cardAccountId)))
+          .getSingle();
+      final newPending = (card.pendingStatementAmount - totalAmount).clamp(0.0, double.infinity);
+      await (db.update(db.accountsTable)
+            ..where((t) => t.id.equals(cardAccountId)))
+          .write(AccountsTableCompanion(
+        pendingStatementAmount: drift.Value(newPending),
+      ));
+    });
   }
 
   /// Adds a new account to the database.
@@ -216,30 +243,18 @@ class AccountService {
     required String type, // 'income' or 'expense'
   }) async {
     final txId = const Uuid().v4();
-    await db.transaction(() async {
-      await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
-        id: txId,
-        title: title,
-        amount: amount,
-        type: type,
-        categoryId: type == 'income' ? 'cat_income' : 'cat_other',
-        accountId: accountId,
-        date: DateTime.now(),
-        note: const drift.Value('Movimiento manual'),
-      ));
-
-      // Update account balance
-      final account = await (db.select(db.accountsTable)..where((t) => t.id.equals(accountId))).getSingle();
-      double newBalance = account.initialBalance;
-      if (type == 'expense') {
-        newBalance -= amount;
-      } else if (type == 'income') {
-        newBalance += amount;
-      }
-      await (db.update(db.accountsTable)..where((t) => t.id.equals(accountId))).write(
-        AccountsTableCompanion(initialBalance: drift.Value(newBalance)),
-      );
-    });
+    // Only insert the transaction — accountsStreamProvider recalculates
+    // balance from initialBalance + all transactions automatically.
+    await db.into(db.transactionsTable).insert(TransactionsTableCompanion.insert(
+      id: txId,
+      title: title,
+      amount: amount,
+      type: type,
+      categoryId: type == 'income' ? 'cat_income' : 'cat_other',
+      accountId: accountId,
+      date: DateTime.now(),
+      note: const drift.Value('Movimiento manual'),
+    ));
     return txId;
   }
 

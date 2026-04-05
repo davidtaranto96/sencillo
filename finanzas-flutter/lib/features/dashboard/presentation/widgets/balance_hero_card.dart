@@ -12,6 +12,10 @@ class BalanceHeroCard extends StatefulWidget {
   final double safeBudget;
   final double arsCash;
   final double pendingCards;
+  final double totalSavedInGoals;
+  final VoidCallback? onSavingsTap;
+  final VoidCallback? onIncomeTap;
+  final VoidCallback? onExpenseTap;
 
   const BalanceHeroCard({
     super.key,
@@ -19,6 +23,10 @@ class BalanceHeroCard extends StatefulWidget {
     required this.safeBudget,
     required this.arsCash,
     required this.pendingCards,
+    this.totalSavedInGoals = 0,
+    this.onSavingsTap,
+    this.onIncomeTap,
+    this.onExpenseTap,
   });
 
   @override
@@ -59,7 +67,11 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final savingsRate = widget.balance.savings.clamp(0.0, 1.0);
+    // Savings rate based on real money allocated to goals vs income
+    final realSavings = widget.totalSavedInGoals;
+    final savingsRate = widget.balance.income > 0
+        ? (realSavings / widget.balance.income).clamp(0.0, 1.0)
+        : 0.0;
     final savingsColor = savingsRate > 0.2
         ? AppTheme.colorIncome
         : savingsRate > 0.05
@@ -149,34 +161,45 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
           ),
           const SizedBox(height: 20),
 
-          // Fila de Estadísticas Detalladas
+          // Fila de Estadísticas Detalladas — siempre 3 columnas simétricas
           Row(
             children: [
-              _DetailStat(
-                label: 'Ingresos',
-                value: formatAmount(widget.balance.income, compact: true),
-                icon: Icons.payments_outlined,
-                color: AppTheme.colorIncome,
-              ),
-              _DetailStat(
-                label: 'Gastado',
-                value: formatAmount(widget.balance.expense, compact: true),
-                icon: Icons.shopping_cart_outlined,
-                color: AppTheme.colorExpense,
-              ),
-              _DetailStat(
-                label: 'Ahorro',
-                value: formatAmount(widget.balance.income - widget.balance.expense, compact: true),
-                icon: Icons.savings_outlined,
-                color: AppTheme.colorTransfer,
-              ),
-              if (widget.balance.pendingToRecover > 0)
-                _DetailStat(
-                  label: 'A recuperar',
-                  value: formatAmount(widget.balance.pendingToRecover, compact: true),
-                  icon: Icons.pending_outlined,
-                  color: AppTheme.colorWarning,
+              Expanded(
+                child: GestureDetector(
+                  onTap: widget.onIncomeTap,
+                  child: _DetailStat(
+                    label: 'Ingresos',
+                    value: formatAmount(widget.balance.income, compact: true),
+                    icon: Icons.payments_outlined,
+                    color: AppTheme.colorIncome,
+                    tappable: widget.onIncomeTap != null,
+                  ),
                 ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: widget.onExpenseTap,
+                  child: _DetailStat(
+                    label: 'Gastado',
+                    value: formatAmount(widget.balance.expense, compact: true),
+                    icon: Icons.shopping_cart_outlined,
+                    color: AppTheme.colorExpense,
+                    tappable: widget.onExpenseTap != null,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: widget.onSavingsTap,
+                  child: _DetailStat(
+                    label: 'Ahorro',
+                    value: formatAmount(realSavings, compact: true),
+                    icon: Icons.savings_outlined,
+                    color: AppTheme.colorTransfer,
+                    tappable: widget.onSavingsTap != null,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -208,31 +231,40 @@ class _DetailStat extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final bool tappable;
 
-  const _DetailStat({required this.label, required this.value, required this.icon, required this.color});
+  const _DetailStat({required this.label, required this.value, required this.icon, required this.color, this.tappable = false});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: color.withValues(alpha: 0.7)),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: color.withValues(alpha: 0.7)),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w500),
             ),
+            if (tappable) ...[
+              const SizedBox(width: 2),
+              Icon(Icons.chevron_right_rounded, size: 12, color: Colors.white24),
+            ],
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -2565,9 +2565,19 @@ class $PersonsTableTable extends PersonsTable
       type: DriftSqlType.double,
       requiredDuringInsert: false,
       defaultValue: const Constant(0.0));
+  static const VerificationMeta _cbuMeta = const VerificationMeta('cbu');
+  @override
+  late final GeneratedColumn<String> cbu = GeneratedColumn<String>(
+      'cbu', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, alias, colorValue, totalBalance];
+      [id, name, alias, colorValue, totalBalance, cbu, notes];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2607,6 +2617,14 @@ class $PersonsTableTable extends PersonsTable
           totalBalance.isAcceptableOrUnknown(
               data['total_balance']!, _totalBalanceMeta));
     }
+    if (data.containsKey('cbu')) {
+      context.handle(
+          _cbuMeta, cbu.isAcceptableOrUnknown(data['cbu']!, _cbuMeta));
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
     return context;
   }
 
@@ -2626,6 +2644,10 @@ class $PersonsTableTable extends PersonsTable
           .read(DriftSqlType.int, data['${effectivePrefix}color_value'])!,
       totalBalance: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}total_balance'])!,
+      cbu: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cbu']),
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
     );
   }
 
@@ -2641,12 +2663,16 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
   final String? alias;
   final int colorValue;
   final double totalBalance;
+  final String? cbu;
+  final String? notes;
   const PersonEntity(
       {required this.id,
       required this.name,
       this.alias,
       required this.colorValue,
-      required this.totalBalance});
+      required this.totalBalance,
+      this.cbu,
+      this.notes});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2657,6 +2683,12 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
     }
     map['color_value'] = Variable<int>(colorValue);
     map['total_balance'] = Variable<double>(totalBalance);
+    if (!nullToAbsent || cbu != null) {
+      map['cbu'] = Variable<String>(cbu);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
     return map;
   }
 
@@ -2668,6 +2700,9 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           alias == null && nullToAbsent ? const Value.absent() : Value(alias),
       colorValue: Value(colorValue),
       totalBalance: Value(totalBalance),
+      cbu: cbu == null && nullToAbsent ? const Value.absent() : Value(cbu),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
     );
   }
 
@@ -2680,6 +2715,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       alias: serializer.fromJson<String?>(json['alias']),
       colorValue: serializer.fromJson<int>(json['colorValue']),
       totalBalance: serializer.fromJson<double>(json['totalBalance']),
+      cbu: serializer.fromJson<String?>(json['cbu']),
+      notes: serializer.fromJson<String?>(json['notes']),
     );
   }
   @override
@@ -2691,6 +2728,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       'alias': serializer.toJson<String?>(alias),
       'colorValue': serializer.toJson<int>(colorValue),
       'totalBalance': serializer.toJson<double>(totalBalance),
+      'cbu': serializer.toJson<String?>(cbu),
+      'notes': serializer.toJson<String?>(notes),
     };
   }
 
@@ -2699,13 +2738,17 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           String? name,
           Value<String?> alias = const Value.absent(),
           int? colorValue,
-          double? totalBalance}) =>
+          double? totalBalance,
+          Value<String?> cbu = const Value.absent(),
+          Value<String?> notes = const Value.absent()}) =>
       PersonEntity(
         id: id ?? this.id,
         name: name ?? this.name,
         alias: alias.present ? alias.value : this.alias,
         colorValue: colorValue ?? this.colorValue,
         totalBalance: totalBalance ?? this.totalBalance,
+        cbu: cbu.present ? cbu.value : this.cbu,
+        notes: notes.present ? notes.value : this.notes,
       );
   PersonEntity copyWithCompanion(PersonsTableCompanion data) {
     return PersonEntity(
@@ -2717,6 +2760,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       totalBalance: data.totalBalance.present
           ? data.totalBalance.value
           : this.totalBalance,
+      cbu: data.cbu.present ? data.cbu.value : this.cbu,
+      notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
 
@@ -2727,13 +2772,16 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           ..write('name: $name, ')
           ..write('alias: $alias, ')
           ..write('colorValue: $colorValue, ')
-          ..write('totalBalance: $totalBalance')
+          ..write('totalBalance: $totalBalance, ')
+          ..write('cbu: $cbu, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, alias, colorValue, totalBalance);
+  int get hashCode =>
+      Object.hash(id, name, alias, colorValue, totalBalance, cbu, notes);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2742,7 +2790,9 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           other.name == this.name &&
           other.alias == this.alias &&
           other.colorValue == this.colorValue &&
-          other.totalBalance == this.totalBalance);
+          other.totalBalance == this.totalBalance &&
+          other.cbu == this.cbu &&
+          other.notes == this.notes);
 }
 
 class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
@@ -2751,6 +2801,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
   final Value<String?> alias;
   final Value<int> colorValue;
   final Value<double> totalBalance;
+  final Value<String?> cbu;
+  final Value<String?> notes;
   final Value<int> rowid;
   const PersonsTableCompanion({
     this.id = const Value.absent(),
@@ -2758,6 +2810,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     this.alias = const Value.absent(),
     this.colorValue = const Value.absent(),
     this.totalBalance = const Value.absent(),
+    this.cbu = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PersonsTableCompanion.insert({
@@ -2766,6 +2820,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     this.alias = const Value.absent(),
     required int colorValue,
     this.totalBalance = const Value.absent(),
+    this.cbu = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name),
@@ -2776,6 +2832,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     Expression<String>? alias,
     Expression<int>? colorValue,
     Expression<double>? totalBalance,
+    Expression<String>? cbu,
+    Expression<String>? notes,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2784,6 +2842,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
       if (alias != null) 'alias': alias,
       if (colorValue != null) 'color_value': colorValue,
       if (totalBalance != null) 'total_balance': totalBalance,
+      if (cbu != null) 'cbu': cbu,
+      if (notes != null) 'notes': notes,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2794,6 +2854,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
       Value<String?>? alias,
       Value<int>? colorValue,
       Value<double>? totalBalance,
+      Value<String?>? cbu,
+      Value<String?>? notes,
       Value<int>? rowid}) {
     return PersonsTableCompanion(
       id: id ?? this.id,
@@ -2801,6 +2863,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
       alias: alias ?? this.alias,
       colorValue: colorValue ?? this.colorValue,
       totalBalance: totalBalance ?? this.totalBalance,
+      cbu: cbu ?? this.cbu,
+      notes: notes ?? this.notes,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2823,6 +2887,12 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     if (totalBalance.present) {
       map['total_balance'] = Variable<double>(totalBalance.value);
     }
+    if (cbu.present) {
+      map['cbu'] = Variable<String>(cbu.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2837,6 +2907,8 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
           ..write('alias: $alias, ')
           ..write('colorValue: $colorValue, ')
           ..write('totalBalance: $totalBalance, ')
+          ..write('cbu: $cbu, ')
+          ..write('notes: $notes, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2876,9 +2948,21 @@ class $GroupsTableTable extends GroupsTable
           type: DriftSqlType.double,
           requiredDuringInsert: false,
           defaultValue: const Constant(0.0));
+  static const VerificationMeta _startDateMeta =
+      const VerificationMeta('startDate');
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+      'start_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _endDateMeta =
+      const VerificationMeta('endDate');
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+      'end_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, coverImageUrl, totalGroupExpense];
+      [id, name, coverImageUrl, totalGroupExpense, startDate, endDate];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2912,6 +2996,14 @@ class $GroupsTableTable extends GroupsTable
           totalGroupExpense.isAcceptableOrUnknown(
               data['total_group_expense']!, _totalGroupExpenseMeta));
     }
+    if (data.containsKey('start_date')) {
+      context.handle(_startDateMeta,
+          startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(_endDateMeta,
+          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
+    }
     return context;
   }
 
@@ -2929,6 +3021,10 @@ class $GroupsTableTable extends GroupsTable
           .read(DriftSqlType.string, data['${effectivePrefix}cover_image_url']),
       totalGroupExpense: attachedDatabase.typeMapping.read(
           DriftSqlType.double, data['${effectivePrefix}total_group_expense'])!,
+      startDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date']),
+      endDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
     );
   }
 
@@ -2943,11 +3039,15 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
   final String name;
   final String? coverImageUrl;
   final double totalGroupExpense;
+  final DateTime? startDate;
+  final DateTime? endDate;
   const GroupEntity(
       {required this.id,
       required this.name,
       this.coverImageUrl,
-      required this.totalGroupExpense});
+      required this.totalGroupExpense,
+      this.startDate,
+      this.endDate});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2957,6 +3057,12 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
       map['cover_image_url'] = Variable<String>(coverImageUrl);
     }
     map['total_group_expense'] = Variable<double>(totalGroupExpense);
+    if (!nullToAbsent || startDate != null) {
+      map['start_date'] = Variable<DateTime>(startDate);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
     return map;
   }
 
@@ -2968,6 +3074,12 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
           ? const Value.absent()
           : Value(coverImageUrl),
       totalGroupExpense: Value(totalGroupExpense),
+      startDate: startDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
     );
   }
 
@@ -2979,6 +3091,8 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
       name: serializer.fromJson<String>(json['name']),
       coverImageUrl: serializer.fromJson<String?>(json['coverImageUrl']),
       totalGroupExpense: serializer.fromJson<double>(json['totalGroupExpense']),
+      startDate: serializer.fromJson<DateTime?>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
     );
   }
   @override
@@ -2989,6 +3103,8 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
       'name': serializer.toJson<String>(name),
       'coverImageUrl': serializer.toJson<String?>(coverImageUrl),
       'totalGroupExpense': serializer.toJson<double>(totalGroupExpense),
+      'startDate': serializer.toJson<DateTime?>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
     };
   }
 
@@ -2996,13 +3112,17 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
           {String? id,
           String? name,
           Value<String?> coverImageUrl = const Value.absent(),
-          double? totalGroupExpense}) =>
+          double? totalGroupExpense,
+          Value<DateTime?> startDate = const Value.absent(),
+          Value<DateTime?> endDate = const Value.absent()}) =>
       GroupEntity(
         id: id ?? this.id,
         name: name ?? this.name,
         coverImageUrl:
             coverImageUrl.present ? coverImageUrl.value : this.coverImageUrl,
         totalGroupExpense: totalGroupExpense ?? this.totalGroupExpense,
+        startDate: startDate.present ? startDate.value : this.startDate,
+        endDate: endDate.present ? endDate.value : this.endDate,
       );
   GroupEntity copyWithCompanion(GroupsTableCompanion data) {
     return GroupEntity(
@@ -3014,6 +3134,8 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
       totalGroupExpense: data.totalGroupExpense.present
           ? data.totalGroupExpense.value
           : this.totalGroupExpense,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
     );
   }
 
@@ -3023,13 +3145,16 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('coverImageUrl: $coverImageUrl, ')
-          ..write('totalGroupExpense: $totalGroupExpense')
+          ..write('totalGroupExpense: $totalGroupExpense, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, coverImageUrl, totalGroupExpense);
+  int get hashCode => Object.hash(
+      id, name, coverImageUrl, totalGroupExpense, startDate, endDate);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3037,7 +3162,9 @@ class GroupEntity extends DataClass implements Insertable<GroupEntity> {
           other.id == this.id &&
           other.name == this.name &&
           other.coverImageUrl == this.coverImageUrl &&
-          other.totalGroupExpense == this.totalGroupExpense);
+          other.totalGroupExpense == this.totalGroupExpense &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate);
 }
 
 class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
@@ -3045,12 +3172,16 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
   final Value<String> name;
   final Value<String?> coverImageUrl;
   final Value<double> totalGroupExpense;
+  final Value<DateTime?> startDate;
+  final Value<DateTime?> endDate;
   final Value<int> rowid;
   const GroupsTableCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.coverImageUrl = const Value.absent(),
     this.totalGroupExpense = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GroupsTableCompanion.insert({
@@ -3058,6 +3189,8 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
     required String name,
     this.coverImageUrl = const Value.absent(),
     this.totalGroupExpense = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -3066,6 +3199,8 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
     Expression<String>? name,
     Expression<String>? coverImageUrl,
     Expression<double>? totalGroupExpense,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3073,6 +3208,8 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
       if (name != null) 'name': name,
       if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
       if (totalGroupExpense != null) 'total_group_expense': totalGroupExpense,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3082,12 +3219,16 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
       Value<String>? name,
       Value<String?>? coverImageUrl,
       Value<double>? totalGroupExpense,
+      Value<DateTime?>? startDate,
+      Value<DateTime?>? endDate,
       Value<int>? rowid}) {
     return GroupsTableCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       totalGroupExpense: totalGroupExpense ?? this.totalGroupExpense,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3107,6 +3248,12 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
     if (totalGroupExpense.present) {
       map['total_group_expense'] = Variable<double>(totalGroupExpense.value);
     }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3120,6 +3267,202 @@ class GroupsTableCompanion extends UpdateCompanion<GroupEntity> {
           ..write('name: $name, ')
           ..write('coverImageUrl: $coverImageUrl, ')
           ..write('totalGroupExpense: $totalGroupExpense, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $GroupMembersTableTable extends GroupMembersTable
+    with TableInfo<$GroupMembersTableTable, GroupMemberEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GroupMembersTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _groupIdMeta =
+      const VerificationMeta('groupId');
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+      'group_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _personIdMeta =
+      const VerificationMeta('personId');
+  @override
+  late final GeneratedColumn<String> personId = GeneratedColumn<String>(
+      'person_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [groupId, personId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'group_members_table';
+  @override
+  VerificationContext validateIntegrity(Insertable<GroupMemberEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('group_id')) {
+      context.handle(_groupIdMeta,
+          groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta));
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('person_id')) {
+      context.handle(_personIdMeta,
+          personId.isAcceptableOrUnknown(data['person_id']!, _personIdMeta));
+    } else if (isInserting) {
+      context.missing(_personIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {groupId, personId};
+  @override
+  GroupMemberEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GroupMemberEntity(
+      groupId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}group_id'])!,
+      personId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}person_id'])!,
+    );
+  }
+
+  @override
+  $GroupMembersTableTable createAlias(String alias) {
+    return $GroupMembersTableTable(attachedDatabase, alias);
+  }
+}
+
+class GroupMemberEntity extends DataClass
+    implements Insertable<GroupMemberEntity> {
+  final String groupId;
+  final String personId;
+  const GroupMemberEntity({required this.groupId, required this.personId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['group_id'] = Variable<String>(groupId);
+    map['person_id'] = Variable<String>(personId);
+    return map;
+  }
+
+  GroupMembersTableCompanion toCompanion(bool nullToAbsent) {
+    return GroupMembersTableCompanion(
+      groupId: Value(groupId),
+      personId: Value(personId),
+    );
+  }
+
+  factory GroupMemberEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GroupMemberEntity(
+      groupId: serializer.fromJson<String>(json['groupId']),
+      personId: serializer.fromJson<String>(json['personId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'groupId': serializer.toJson<String>(groupId),
+      'personId': serializer.toJson<String>(personId),
+    };
+  }
+
+  GroupMemberEntity copyWith({String? groupId, String? personId}) =>
+      GroupMemberEntity(
+        groupId: groupId ?? this.groupId,
+        personId: personId ?? this.personId,
+      );
+  GroupMemberEntity copyWithCompanion(GroupMembersTableCompanion data) {
+    return GroupMemberEntity(
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      personId: data.personId.present ? data.personId.value : this.personId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupMemberEntity(')
+          ..write('groupId: $groupId, ')
+          ..write('personId: $personId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(groupId, personId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GroupMemberEntity &&
+          other.groupId == this.groupId &&
+          other.personId == this.personId);
+}
+
+class GroupMembersTableCompanion extends UpdateCompanion<GroupMemberEntity> {
+  final Value<String> groupId;
+  final Value<String> personId;
+  final Value<int> rowid;
+  const GroupMembersTableCompanion({
+    this.groupId = const Value.absent(),
+    this.personId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GroupMembersTableCompanion.insert({
+    required String groupId,
+    required String personId,
+    this.rowid = const Value.absent(),
+  })  : groupId = Value(groupId),
+        personId = Value(personId);
+  static Insertable<GroupMemberEntity> custom({
+    Expression<String>? groupId,
+    Expression<String>? personId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (groupId != null) 'group_id': groupId,
+      if (personId != null) 'person_id': personId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GroupMembersTableCompanion copyWith(
+      {Value<String>? groupId, Value<String>? personId, Value<int>? rowid}) {
+    return GroupMembersTableCompanion(
+      groupId: groupId ?? this.groupId,
+      personId: personId ?? this.personId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (personId.present) {
+      map['person_id'] = Variable<String>(personId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupMembersTableCompanion(')
+          ..write('groupId: $groupId, ')
+          ..write('personId: $personId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3438,6 +3781,808 @@ class UserProfileTableCompanion extends UpdateCompanion<UserProfileEntity> {
   }
 }
 
+class $WishlistTableTable extends WishlistTable
+    with TableInfo<$WishlistTableTable, WishlistEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WishlistTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _estimatedCostMeta =
+      const VerificationMeta('estimatedCost');
+  @override
+  late final GeneratedColumn<double> estimatedCost = GeneratedColumn<double>(
+      'estimated_cost', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+      'url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _installmentsMeta =
+      const VerificationMeta('installments');
+  @override
+  late final GeneratedColumn<int> installments = GeneratedColumn<int>(
+      'installments', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _hasPromoMeta =
+      const VerificationMeta('hasPromo');
+  @override
+  late final GeneratedColumn<bool> hasPromo = GeneratedColumn<bool>(
+      'has_promo', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("has_promo" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _isPurchasedMeta =
+      const VerificationMeta('isPurchased');
+  @override
+  late final GeneratedColumn<bool> isPurchased = GeneratedColumn<bool>(
+      'is_purchased', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_purchased" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _purchasedAtMeta =
+      const VerificationMeta('purchasedAt');
+  @override
+  late final GeneratedColumn<DateTime> purchasedAt = GeneratedColumn<DateTime>(
+      'purchased_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _purchaseMethodMeta =
+      const VerificationMeta('purchaseMethod');
+  @override
+  late final GeneratedColumn<String> purchaseMethod = GeneratedColumn<String>(
+      'purchase_method', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _purchaseAccountIdMeta =
+      const VerificationMeta('purchaseAccountId');
+  @override
+  late final GeneratedColumn<String> purchaseAccountId =
+      GeneratedColumn<String>('purchase_account_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _linkedBudgetIdMeta =
+      const VerificationMeta('linkedBudgetId');
+  @override
+  late final GeneratedColumn<String> linkedBudgetId = GeneratedColumn<String>(
+      'linked_budget_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _reminderDaysMeta =
+      const VerificationMeta('reminderDays');
+  @override
+  late final GeneratedColumn<int> reminderDays = GeneratedColumn<int>(
+      'reminder_days', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _reminderSnoozedUntilMeta =
+      const VerificationMeta('reminderSnoozedUntil');
+  @override
+  late final GeneratedColumn<DateTime> reminderSnoozedUntil =
+      GeneratedColumn<DateTime>('reminder_snoozed_until', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _reminderDismissedMeta =
+      const VerificationMeta('reminderDismissed');
+  @override
+  late final GeneratedColumn<bool> reminderDismissed = GeneratedColumn<bool>(
+      'reminder_dismissed', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("reminder_dismissed" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        title,
+        estimatedCost,
+        note,
+        url,
+        installments,
+        hasPromo,
+        createdAt,
+        isPurchased,
+        purchasedAt,
+        purchaseMethod,
+        purchaseAccountId,
+        linkedBudgetId,
+        reminderDays,
+        reminderSnoozedUntil,
+        reminderDismissed
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wishlist_table';
+  @override
+  VerificationContext validateIntegrity(Insertable<WishlistEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('estimated_cost')) {
+      context.handle(
+          _estimatedCostMeta,
+          estimatedCost.isAcceptableOrUnknown(
+              data['estimated_cost']!, _estimatedCostMeta));
+    } else if (isInserting) {
+      context.missing(_estimatedCostMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+          _urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+    }
+    if (data.containsKey('installments')) {
+      context.handle(
+          _installmentsMeta,
+          installments.isAcceptableOrUnknown(
+              data['installments']!, _installmentsMeta));
+    }
+    if (data.containsKey('has_promo')) {
+      context.handle(_hasPromoMeta,
+          hasPromo.isAcceptableOrUnknown(data['has_promo']!, _hasPromoMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('is_purchased')) {
+      context.handle(
+          _isPurchasedMeta,
+          isPurchased.isAcceptableOrUnknown(
+              data['is_purchased']!, _isPurchasedMeta));
+    }
+    if (data.containsKey('purchased_at')) {
+      context.handle(
+          _purchasedAtMeta,
+          purchasedAt.isAcceptableOrUnknown(
+              data['purchased_at']!, _purchasedAtMeta));
+    }
+    if (data.containsKey('purchase_method')) {
+      context.handle(
+          _purchaseMethodMeta,
+          purchaseMethod.isAcceptableOrUnknown(
+              data['purchase_method']!, _purchaseMethodMeta));
+    }
+    if (data.containsKey('purchase_account_id')) {
+      context.handle(
+          _purchaseAccountIdMeta,
+          purchaseAccountId.isAcceptableOrUnknown(
+              data['purchase_account_id']!, _purchaseAccountIdMeta));
+    }
+    if (data.containsKey('linked_budget_id')) {
+      context.handle(
+          _linkedBudgetIdMeta,
+          linkedBudgetId.isAcceptableOrUnknown(
+              data['linked_budget_id']!, _linkedBudgetIdMeta));
+    }
+    if (data.containsKey('reminder_days')) {
+      context.handle(
+          _reminderDaysMeta,
+          reminderDays.isAcceptableOrUnknown(
+              data['reminder_days']!, _reminderDaysMeta));
+    }
+    if (data.containsKey('reminder_snoozed_until')) {
+      context.handle(
+          _reminderSnoozedUntilMeta,
+          reminderSnoozedUntil.isAcceptableOrUnknown(
+              data['reminder_snoozed_until']!, _reminderSnoozedUntilMeta));
+    }
+    if (data.containsKey('reminder_dismissed')) {
+      context.handle(
+          _reminderDismissedMeta,
+          reminderDismissed.isAcceptableOrUnknown(
+              data['reminder_dismissed']!, _reminderDismissedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WishlistEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WishlistEntity(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      estimatedCost: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}estimated_cost'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      url: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}url']),
+      installments: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}installments'])!,
+      hasPromo: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}has_promo'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      isPurchased: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_purchased'])!,
+      purchasedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}purchased_at']),
+      purchaseMethod: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}purchase_method']),
+      purchaseAccountId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}purchase_account_id']),
+      linkedBudgetId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}linked_budget_id']),
+      reminderDays: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reminder_days']),
+      reminderSnoozedUntil: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}reminder_snoozed_until']),
+      reminderDismissed: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}reminder_dismissed'])!,
+    );
+  }
+
+  @override
+  $WishlistTableTable createAlias(String alias) {
+    return $WishlistTableTable(attachedDatabase, alias);
+  }
+}
+
+class WishlistEntity extends DataClass implements Insertable<WishlistEntity> {
+  final String id;
+  final String title;
+  final double estimatedCost;
+  final String? note;
+  final String? url;
+  final int installments;
+  final bool hasPromo;
+  final DateTime createdAt;
+  final bool isPurchased;
+  final DateTime? purchasedAt;
+  final String? purchaseMethod;
+  final String? purchaseAccountId;
+  final String? linkedBudgetId;
+  final int? reminderDays;
+  final DateTime? reminderSnoozedUntil;
+  final bool reminderDismissed;
+  const WishlistEntity(
+      {required this.id,
+      required this.title,
+      required this.estimatedCost,
+      this.note,
+      this.url,
+      required this.installments,
+      required this.hasPromo,
+      required this.createdAt,
+      required this.isPurchased,
+      this.purchasedAt,
+      this.purchaseMethod,
+      this.purchaseAccountId,
+      this.linkedBudgetId,
+      this.reminderDays,
+      this.reminderSnoozedUntil,
+      required this.reminderDismissed});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    map['estimated_cost'] = Variable<double>(estimatedCost);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || url != null) {
+      map['url'] = Variable<String>(url);
+    }
+    map['installments'] = Variable<int>(installments);
+    map['has_promo'] = Variable<bool>(hasPromo);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_purchased'] = Variable<bool>(isPurchased);
+    if (!nullToAbsent || purchasedAt != null) {
+      map['purchased_at'] = Variable<DateTime>(purchasedAt);
+    }
+    if (!nullToAbsent || purchaseMethod != null) {
+      map['purchase_method'] = Variable<String>(purchaseMethod);
+    }
+    if (!nullToAbsent || purchaseAccountId != null) {
+      map['purchase_account_id'] = Variable<String>(purchaseAccountId);
+    }
+    if (!nullToAbsent || linkedBudgetId != null) {
+      map['linked_budget_id'] = Variable<String>(linkedBudgetId);
+    }
+    if (!nullToAbsent || reminderDays != null) {
+      map['reminder_days'] = Variable<int>(reminderDays);
+    }
+    if (!nullToAbsent || reminderSnoozedUntil != null) {
+      map['reminder_snoozed_until'] = Variable<DateTime>(reminderSnoozedUntil);
+    }
+    map['reminder_dismissed'] = Variable<bool>(reminderDismissed);
+    return map;
+  }
+
+  WishlistTableCompanion toCompanion(bool nullToAbsent) {
+    return WishlistTableCompanion(
+      id: Value(id),
+      title: Value(title),
+      estimatedCost: Value(estimatedCost),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
+      installments: Value(installments),
+      hasPromo: Value(hasPromo),
+      createdAt: Value(createdAt),
+      isPurchased: Value(isPurchased),
+      purchasedAt: purchasedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchasedAt),
+      purchaseMethod: purchaseMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchaseMethod),
+      purchaseAccountId: purchaseAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchaseAccountId),
+      linkedBudgetId: linkedBudgetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedBudgetId),
+      reminderDays: reminderDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderDays),
+      reminderSnoozedUntil: reminderSnoozedUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderSnoozedUntil),
+      reminderDismissed: Value(reminderDismissed),
+    );
+  }
+
+  factory WishlistEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WishlistEntity(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      estimatedCost: serializer.fromJson<double>(json['estimatedCost']),
+      note: serializer.fromJson<String?>(json['note']),
+      url: serializer.fromJson<String?>(json['url']),
+      installments: serializer.fromJson<int>(json['installments']),
+      hasPromo: serializer.fromJson<bool>(json['hasPromo']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isPurchased: serializer.fromJson<bool>(json['isPurchased']),
+      purchasedAt: serializer.fromJson<DateTime?>(json['purchasedAt']),
+      purchaseMethod: serializer.fromJson<String?>(json['purchaseMethod']),
+      purchaseAccountId:
+          serializer.fromJson<String?>(json['purchaseAccountId']),
+      linkedBudgetId: serializer.fromJson<String?>(json['linkedBudgetId']),
+      reminderDays: serializer.fromJson<int?>(json['reminderDays']),
+      reminderSnoozedUntil:
+          serializer.fromJson<DateTime?>(json['reminderSnoozedUntil']),
+      reminderDismissed: serializer.fromJson<bool>(json['reminderDismissed']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'estimatedCost': serializer.toJson<double>(estimatedCost),
+      'note': serializer.toJson<String?>(note),
+      'url': serializer.toJson<String?>(url),
+      'installments': serializer.toJson<int>(installments),
+      'hasPromo': serializer.toJson<bool>(hasPromo),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isPurchased': serializer.toJson<bool>(isPurchased),
+      'purchasedAt': serializer.toJson<DateTime?>(purchasedAt),
+      'purchaseMethod': serializer.toJson<String?>(purchaseMethod),
+      'purchaseAccountId': serializer.toJson<String?>(purchaseAccountId),
+      'linkedBudgetId': serializer.toJson<String?>(linkedBudgetId),
+      'reminderDays': serializer.toJson<int?>(reminderDays),
+      'reminderSnoozedUntil':
+          serializer.toJson<DateTime?>(reminderSnoozedUntil),
+      'reminderDismissed': serializer.toJson<bool>(reminderDismissed),
+    };
+  }
+
+  WishlistEntity copyWith(
+          {String? id,
+          String? title,
+          double? estimatedCost,
+          Value<String?> note = const Value.absent(),
+          Value<String?> url = const Value.absent(),
+          int? installments,
+          bool? hasPromo,
+          DateTime? createdAt,
+          bool? isPurchased,
+          Value<DateTime?> purchasedAt = const Value.absent(),
+          Value<String?> purchaseMethod = const Value.absent(),
+          Value<String?> purchaseAccountId = const Value.absent(),
+          Value<String?> linkedBudgetId = const Value.absent(),
+          Value<int?> reminderDays = const Value.absent(),
+          Value<DateTime?> reminderSnoozedUntil = const Value.absent(),
+          bool? reminderDismissed}) =>
+      WishlistEntity(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        estimatedCost: estimatedCost ?? this.estimatedCost,
+        note: note.present ? note.value : this.note,
+        url: url.present ? url.value : this.url,
+        installments: installments ?? this.installments,
+        hasPromo: hasPromo ?? this.hasPromo,
+        createdAt: createdAt ?? this.createdAt,
+        isPurchased: isPurchased ?? this.isPurchased,
+        purchasedAt: purchasedAt.present ? purchasedAt.value : this.purchasedAt,
+        purchaseMethod:
+            purchaseMethod.present ? purchaseMethod.value : this.purchaseMethod,
+        purchaseAccountId: purchaseAccountId.present
+            ? purchaseAccountId.value
+            : this.purchaseAccountId,
+        linkedBudgetId:
+            linkedBudgetId.present ? linkedBudgetId.value : this.linkedBudgetId,
+        reminderDays:
+            reminderDays.present ? reminderDays.value : this.reminderDays,
+        reminderSnoozedUntil: reminderSnoozedUntil.present
+            ? reminderSnoozedUntil.value
+            : this.reminderSnoozedUntil,
+        reminderDismissed: reminderDismissed ?? this.reminderDismissed,
+      );
+  WishlistEntity copyWithCompanion(WishlistTableCompanion data) {
+    return WishlistEntity(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      estimatedCost: data.estimatedCost.present
+          ? data.estimatedCost.value
+          : this.estimatedCost,
+      note: data.note.present ? data.note.value : this.note,
+      url: data.url.present ? data.url.value : this.url,
+      installments: data.installments.present
+          ? data.installments.value
+          : this.installments,
+      hasPromo: data.hasPromo.present ? data.hasPromo.value : this.hasPromo,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isPurchased:
+          data.isPurchased.present ? data.isPurchased.value : this.isPurchased,
+      purchasedAt:
+          data.purchasedAt.present ? data.purchasedAt.value : this.purchasedAt,
+      purchaseMethod: data.purchaseMethod.present
+          ? data.purchaseMethod.value
+          : this.purchaseMethod,
+      purchaseAccountId: data.purchaseAccountId.present
+          ? data.purchaseAccountId.value
+          : this.purchaseAccountId,
+      linkedBudgetId: data.linkedBudgetId.present
+          ? data.linkedBudgetId.value
+          : this.linkedBudgetId,
+      reminderDays: data.reminderDays.present
+          ? data.reminderDays.value
+          : this.reminderDays,
+      reminderSnoozedUntil: data.reminderSnoozedUntil.present
+          ? data.reminderSnoozedUntil.value
+          : this.reminderSnoozedUntil,
+      reminderDismissed: data.reminderDismissed.present
+          ? data.reminderDismissed.value
+          : this.reminderDismissed,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WishlistEntity(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('estimatedCost: $estimatedCost, ')
+          ..write('note: $note, ')
+          ..write('url: $url, ')
+          ..write('installments: $installments, ')
+          ..write('hasPromo: $hasPromo, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isPurchased: $isPurchased, ')
+          ..write('purchasedAt: $purchasedAt, ')
+          ..write('purchaseMethod: $purchaseMethod, ')
+          ..write('purchaseAccountId: $purchaseAccountId, ')
+          ..write('linkedBudgetId: $linkedBudgetId, ')
+          ..write('reminderDays: $reminderDays, ')
+          ..write('reminderSnoozedUntil: $reminderSnoozedUntil, ')
+          ..write('reminderDismissed: $reminderDismissed')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      title,
+      estimatedCost,
+      note,
+      url,
+      installments,
+      hasPromo,
+      createdAt,
+      isPurchased,
+      purchasedAt,
+      purchaseMethod,
+      purchaseAccountId,
+      linkedBudgetId,
+      reminderDays,
+      reminderSnoozedUntil,
+      reminderDismissed);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WishlistEntity &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.estimatedCost == this.estimatedCost &&
+          other.note == this.note &&
+          other.url == this.url &&
+          other.installments == this.installments &&
+          other.hasPromo == this.hasPromo &&
+          other.createdAt == this.createdAt &&
+          other.isPurchased == this.isPurchased &&
+          other.purchasedAt == this.purchasedAt &&
+          other.purchaseMethod == this.purchaseMethod &&
+          other.purchaseAccountId == this.purchaseAccountId &&
+          other.linkedBudgetId == this.linkedBudgetId &&
+          other.reminderDays == this.reminderDays &&
+          other.reminderSnoozedUntil == this.reminderSnoozedUntil &&
+          other.reminderDismissed == this.reminderDismissed);
+}
+
+class WishlistTableCompanion extends UpdateCompanion<WishlistEntity> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<double> estimatedCost;
+  final Value<String?> note;
+  final Value<String?> url;
+  final Value<int> installments;
+  final Value<bool> hasPromo;
+  final Value<DateTime> createdAt;
+  final Value<bool> isPurchased;
+  final Value<DateTime?> purchasedAt;
+  final Value<String?> purchaseMethod;
+  final Value<String?> purchaseAccountId;
+  final Value<String?> linkedBudgetId;
+  final Value<int?> reminderDays;
+  final Value<DateTime?> reminderSnoozedUntil;
+  final Value<bool> reminderDismissed;
+  final Value<int> rowid;
+  const WishlistTableCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.estimatedCost = const Value.absent(),
+    this.note = const Value.absent(),
+    this.url = const Value.absent(),
+    this.installments = const Value.absent(),
+    this.hasPromo = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.isPurchased = const Value.absent(),
+    this.purchasedAt = const Value.absent(),
+    this.purchaseMethod = const Value.absent(),
+    this.purchaseAccountId = const Value.absent(),
+    this.linkedBudgetId = const Value.absent(),
+    this.reminderDays = const Value.absent(),
+    this.reminderSnoozedUntil = const Value.absent(),
+    this.reminderDismissed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WishlistTableCompanion.insert({
+    required String id,
+    required String title,
+    required double estimatedCost,
+    this.note = const Value.absent(),
+    this.url = const Value.absent(),
+    this.installments = const Value.absent(),
+    this.hasPromo = const Value.absent(),
+    required DateTime createdAt,
+    this.isPurchased = const Value.absent(),
+    this.purchasedAt = const Value.absent(),
+    this.purchaseMethod = const Value.absent(),
+    this.purchaseAccountId = const Value.absent(),
+    this.linkedBudgetId = const Value.absent(),
+    this.reminderDays = const Value.absent(),
+    this.reminderSnoozedUntil = const Value.absent(),
+    this.reminderDismissed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        title = Value(title),
+        estimatedCost = Value(estimatedCost),
+        createdAt = Value(createdAt);
+  static Insertable<WishlistEntity> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<double>? estimatedCost,
+    Expression<String>? note,
+    Expression<String>? url,
+    Expression<int>? installments,
+    Expression<bool>? hasPromo,
+    Expression<DateTime>? createdAt,
+    Expression<bool>? isPurchased,
+    Expression<DateTime>? purchasedAt,
+    Expression<String>? purchaseMethod,
+    Expression<String>? purchaseAccountId,
+    Expression<String>? linkedBudgetId,
+    Expression<int>? reminderDays,
+    Expression<DateTime>? reminderSnoozedUntil,
+    Expression<bool>? reminderDismissed,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (estimatedCost != null) 'estimated_cost': estimatedCost,
+      if (note != null) 'note': note,
+      if (url != null) 'url': url,
+      if (installments != null) 'installments': installments,
+      if (hasPromo != null) 'has_promo': hasPromo,
+      if (createdAt != null) 'created_at': createdAt,
+      if (isPurchased != null) 'is_purchased': isPurchased,
+      if (purchasedAt != null) 'purchased_at': purchasedAt,
+      if (purchaseMethod != null) 'purchase_method': purchaseMethod,
+      if (purchaseAccountId != null) 'purchase_account_id': purchaseAccountId,
+      if (linkedBudgetId != null) 'linked_budget_id': linkedBudgetId,
+      if (reminderDays != null) 'reminder_days': reminderDays,
+      if (reminderSnoozedUntil != null)
+        'reminder_snoozed_until': reminderSnoozedUntil,
+      if (reminderDismissed != null) 'reminder_dismissed': reminderDismissed,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WishlistTableCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? title,
+      Value<double>? estimatedCost,
+      Value<String?>? note,
+      Value<String?>? url,
+      Value<int>? installments,
+      Value<bool>? hasPromo,
+      Value<DateTime>? createdAt,
+      Value<bool>? isPurchased,
+      Value<DateTime?>? purchasedAt,
+      Value<String?>? purchaseMethod,
+      Value<String?>? purchaseAccountId,
+      Value<String?>? linkedBudgetId,
+      Value<int?>? reminderDays,
+      Value<DateTime?>? reminderSnoozedUntil,
+      Value<bool>? reminderDismissed,
+      Value<int>? rowid}) {
+    return WishlistTableCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      note: note ?? this.note,
+      url: url ?? this.url,
+      installments: installments ?? this.installments,
+      hasPromo: hasPromo ?? this.hasPromo,
+      createdAt: createdAt ?? this.createdAt,
+      isPurchased: isPurchased ?? this.isPurchased,
+      purchasedAt: purchasedAt ?? this.purchasedAt,
+      purchaseMethod: purchaseMethod ?? this.purchaseMethod,
+      purchaseAccountId: purchaseAccountId ?? this.purchaseAccountId,
+      linkedBudgetId: linkedBudgetId ?? this.linkedBudgetId,
+      reminderDays: reminderDays ?? this.reminderDays,
+      reminderSnoozedUntil: reminderSnoozedUntil ?? this.reminderSnoozedUntil,
+      reminderDismissed: reminderDismissed ?? this.reminderDismissed,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (estimatedCost.present) {
+      map['estimated_cost'] = Variable<double>(estimatedCost.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (installments.present) {
+      map['installments'] = Variable<int>(installments.value);
+    }
+    if (hasPromo.present) {
+      map['has_promo'] = Variable<bool>(hasPromo.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (isPurchased.present) {
+      map['is_purchased'] = Variable<bool>(isPurchased.value);
+    }
+    if (purchasedAt.present) {
+      map['purchased_at'] = Variable<DateTime>(purchasedAt.value);
+    }
+    if (purchaseMethod.present) {
+      map['purchase_method'] = Variable<String>(purchaseMethod.value);
+    }
+    if (purchaseAccountId.present) {
+      map['purchase_account_id'] = Variable<String>(purchaseAccountId.value);
+    }
+    if (linkedBudgetId.present) {
+      map['linked_budget_id'] = Variable<String>(linkedBudgetId.value);
+    }
+    if (reminderDays.present) {
+      map['reminder_days'] = Variable<int>(reminderDays.value);
+    }
+    if (reminderSnoozedUntil.present) {
+      map['reminder_snoozed_until'] =
+          Variable<DateTime>(reminderSnoozedUntil.value);
+    }
+    if (reminderDismissed.present) {
+      map['reminder_dismissed'] = Variable<bool>(reminderDismissed.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WishlistTableCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('estimatedCost: $estimatedCost, ')
+          ..write('note: $note, ')
+          ..write('url: $url, ')
+          ..write('installments: $installments, ')
+          ..write('hasPromo: $hasPromo, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isPurchased: $isPurchased, ')
+          ..write('purchasedAt: $purchasedAt, ')
+          ..write('purchaseMethod: $purchaseMethod, ')
+          ..write('purchaseAccountId: $purchaseAccountId, ')
+          ..write('linkedBudgetId: $linkedBudgetId, ')
+          ..write('reminderDays: $reminderDays, ')
+          ..write('reminderSnoozedUntil: $reminderSnoozedUntil, ')
+          ..write('reminderDismissed: $reminderDismissed, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3450,8 +4595,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GoalsTableTable goalsTable = $GoalsTableTable(this);
   late final $PersonsTableTable personsTable = $PersonsTableTable(this);
   late final $GroupsTableTable groupsTable = $GroupsTableTable(this);
+  late final $GroupMembersTableTable groupMembersTable =
+      $GroupMembersTableTable(this);
   late final $UserProfileTableTable userProfileTable =
       $UserProfileTableTable(this);
+  late final $WishlistTableTable wishlistTable = $WishlistTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3464,7 +4612,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         goalsTable,
         personsTable,
         groupsTable,
-        userProfileTable
+        groupMembersTable,
+        userProfileTable,
+        wishlistTable
       ];
 }
 
@@ -4683,6 +5833,8 @@ typedef $$PersonsTableTableCreateCompanionBuilder = PersonsTableCompanion
   Value<String?> alias,
   required int colorValue,
   Value<double> totalBalance,
+  Value<String?> cbu,
+  Value<String?> notes,
   Value<int> rowid,
 });
 typedef $$PersonsTableTableUpdateCompanionBuilder = PersonsTableCompanion
@@ -4692,6 +5844,8 @@ typedef $$PersonsTableTableUpdateCompanionBuilder = PersonsTableCompanion
   Value<String?> alias,
   Value<int> colorValue,
   Value<double> totalBalance,
+  Value<String?> cbu,
+  Value<String?> notes,
   Value<int> rowid,
 });
 
@@ -4718,6 +5872,12 @@ class $$PersonsTableTableFilterComposer
 
   ColumnFilters<double> get totalBalance => $composableBuilder(
       column: $table.totalBalance, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cbu => $composableBuilder(
+      column: $table.cbu, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
 }
 
 class $$PersonsTableTableOrderingComposer
@@ -4744,6 +5904,12 @@ class $$PersonsTableTableOrderingComposer
   ColumnOrderings<double> get totalBalance => $composableBuilder(
       column: $table.totalBalance,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cbu => $composableBuilder(
+      column: $table.cbu, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
 }
 
 class $$PersonsTableTableAnnotationComposer
@@ -4769,6 +5935,12 @@ class $$PersonsTableTableAnnotationComposer
 
   GeneratedColumn<double> get totalBalance => $composableBuilder(
       column: $table.totalBalance, builder: (column) => column);
+
+  GeneratedColumn<String> get cbu =>
+      $composableBuilder(column: $table.cbu, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 }
 
 class $$PersonsTableTableTableManager extends RootTableManager<
@@ -4802,6 +5974,8 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             Value<String?> alias = const Value.absent(),
             Value<int> colorValue = const Value.absent(),
             Value<double> totalBalance = const Value.absent(),
+            Value<String?> cbu = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PersonsTableCompanion(
@@ -4810,6 +5984,8 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             alias: alias,
             colorValue: colorValue,
             totalBalance: totalBalance,
+            cbu: cbu,
+            notes: notes,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4818,6 +5994,8 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             Value<String?> alias = const Value.absent(),
             required int colorValue,
             Value<double> totalBalance = const Value.absent(),
+            Value<String?> cbu = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PersonsTableCompanion.insert(
@@ -4826,6 +6004,8 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             alias: alias,
             colorValue: colorValue,
             totalBalance: totalBalance,
+            cbu: cbu,
+            notes: notes,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -4856,6 +6036,8 @@ typedef $$GroupsTableTableCreateCompanionBuilder = GroupsTableCompanion
   required String name,
   Value<String?> coverImageUrl,
   Value<double> totalGroupExpense,
+  Value<DateTime?> startDate,
+  Value<DateTime?> endDate,
   Value<int> rowid,
 });
 typedef $$GroupsTableTableUpdateCompanionBuilder = GroupsTableCompanion
@@ -4864,6 +6046,8 @@ typedef $$GroupsTableTableUpdateCompanionBuilder = GroupsTableCompanion
   Value<String> name,
   Value<String?> coverImageUrl,
   Value<double> totalGroupExpense,
+  Value<DateTime?> startDate,
+  Value<DateTime?> endDate,
   Value<int> rowid,
 });
 
@@ -4888,6 +6072,12 @@ class $$GroupsTableTableFilterComposer
   ColumnFilters<double> get totalGroupExpense => $composableBuilder(
       column: $table.totalGroupExpense,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnFilters(column));
 }
 
 class $$GroupsTableTableOrderingComposer
@@ -4912,6 +6102,12 @@ class $$GroupsTableTableOrderingComposer
   ColumnOrderings<double> get totalGroupExpense => $composableBuilder(
       column: $table.totalGroupExpense,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnOrderings(column));
 }
 
 class $$GroupsTableTableAnnotationComposer
@@ -4934,6 +6130,12 @@ class $$GroupsTableTableAnnotationComposer
 
   GeneratedColumn<double> get totalGroupExpense => $composableBuilder(
       column: $table.totalGroupExpense, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
 }
 
 class $$GroupsTableTableTableManager extends RootTableManager<
@@ -4966,6 +6168,8 @@ class $$GroupsTableTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String?> coverImageUrl = const Value.absent(),
             Value<double> totalGroupExpense = const Value.absent(),
+            Value<DateTime?> startDate = const Value.absent(),
+            Value<DateTime?> endDate = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               GroupsTableCompanion(
@@ -4973,6 +6177,8 @@ class $$GroupsTableTableTableManager extends RootTableManager<
             name: name,
             coverImageUrl: coverImageUrl,
             totalGroupExpense: totalGroupExpense,
+            startDate: startDate,
+            endDate: endDate,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4980,6 +6186,8 @@ class $$GroupsTableTableTableManager extends RootTableManager<
             required String name,
             Value<String?> coverImageUrl = const Value.absent(),
             Value<double> totalGroupExpense = const Value.absent(),
+            Value<DateTime?> startDate = const Value.absent(),
+            Value<DateTime?> endDate = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               GroupsTableCompanion.insert(
@@ -4987,6 +6195,8 @@ class $$GroupsTableTableTableManager extends RootTableManager<
             name: name,
             coverImageUrl: coverImageUrl,
             totalGroupExpense: totalGroupExpense,
+            startDate: startDate,
+            endDate: endDate,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -5010,6 +6220,136 @@ typedef $$GroupsTableTableProcessedTableManager = ProcessedTableManager<
       BaseReferences<_$AppDatabase, $GroupsTableTable, GroupEntity>
     ),
     GroupEntity,
+    PrefetchHooks Function()>;
+typedef $$GroupMembersTableTableCreateCompanionBuilder
+    = GroupMembersTableCompanion Function({
+  required String groupId,
+  required String personId,
+  Value<int> rowid,
+});
+typedef $$GroupMembersTableTableUpdateCompanionBuilder
+    = GroupMembersTableCompanion Function({
+  Value<String> groupId,
+  Value<String> personId,
+  Value<int> rowid,
+});
+
+class $$GroupMembersTableTableFilterComposer
+    extends Composer<_$AppDatabase, $GroupMembersTableTable> {
+  $$GroupMembersTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get groupId => $composableBuilder(
+      column: $table.groupId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get personId => $composableBuilder(
+      column: $table.personId, builder: (column) => ColumnFilters(column));
+}
+
+class $$GroupMembersTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $GroupMembersTableTable> {
+  $$GroupMembersTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get groupId => $composableBuilder(
+      column: $table.groupId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get personId => $composableBuilder(
+      column: $table.personId, builder: (column) => ColumnOrderings(column));
+}
+
+class $$GroupMembersTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GroupMembersTableTable> {
+  $$GroupMembersTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get groupId =>
+      $composableBuilder(column: $table.groupId, builder: (column) => column);
+
+  GeneratedColumn<String> get personId =>
+      $composableBuilder(column: $table.personId, builder: (column) => column);
+}
+
+class $$GroupMembersTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $GroupMembersTableTable,
+    GroupMemberEntity,
+    $$GroupMembersTableTableFilterComposer,
+    $$GroupMembersTableTableOrderingComposer,
+    $$GroupMembersTableTableAnnotationComposer,
+    $$GroupMembersTableTableCreateCompanionBuilder,
+    $$GroupMembersTableTableUpdateCompanionBuilder,
+    (
+      GroupMemberEntity,
+      BaseReferences<_$AppDatabase, $GroupMembersTableTable, GroupMemberEntity>
+    ),
+    GroupMemberEntity,
+    PrefetchHooks Function()> {
+  $$GroupMembersTableTableTableManager(
+      _$AppDatabase db, $GroupMembersTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GroupMembersTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GroupMembersTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GroupMembersTableTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> groupId = const Value.absent(),
+            Value<String> personId = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GroupMembersTableCompanion(
+            groupId: groupId,
+            personId: personId,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String groupId,
+            required String personId,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GroupMembersTableCompanion.insert(
+            groupId: groupId,
+            personId: personId,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$GroupMembersTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $GroupMembersTableTable,
+    GroupMemberEntity,
+    $$GroupMembersTableTableFilterComposer,
+    $$GroupMembersTableTableOrderingComposer,
+    $$GroupMembersTableTableAnnotationComposer,
+    $$GroupMembersTableTableCreateCompanionBuilder,
+    $$GroupMembersTableTableUpdateCompanionBuilder,
+    (
+      GroupMemberEntity,
+      BaseReferences<_$AppDatabase, $GroupMembersTableTable, GroupMemberEntity>
+    ),
+    GroupMemberEntity,
     PrefetchHooks Function()>;
 typedef $$UserProfileTableTableCreateCompanionBuilder
     = UserProfileTableCompanion Function({
@@ -5186,6 +6526,357 @@ typedef $$UserProfileTableTableProcessedTableManager = ProcessedTableManager<
     ),
     UserProfileEntity,
     PrefetchHooks Function()>;
+typedef $$WishlistTableTableCreateCompanionBuilder = WishlistTableCompanion
+    Function({
+  required String id,
+  required String title,
+  required double estimatedCost,
+  Value<String?> note,
+  Value<String?> url,
+  Value<int> installments,
+  Value<bool> hasPromo,
+  required DateTime createdAt,
+  Value<bool> isPurchased,
+  Value<DateTime?> purchasedAt,
+  Value<String?> purchaseMethod,
+  Value<String?> purchaseAccountId,
+  Value<String?> linkedBudgetId,
+  Value<int?> reminderDays,
+  Value<DateTime?> reminderSnoozedUntil,
+  Value<bool> reminderDismissed,
+  Value<int> rowid,
+});
+typedef $$WishlistTableTableUpdateCompanionBuilder = WishlistTableCompanion
+    Function({
+  Value<String> id,
+  Value<String> title,
+  Value<double> estimatedCost,
+  Value<String?> note,
+  Value<String?> url,
+  Value<int> installments,
+  Value<bool> hasPromo,
+  Value<DateTime> createdAt,
+  Value<bool> isPurchased,
+  Value<DateTime?> purchasedAt,
+  Value<String?> purchaseMethod,
+  Value<String?> purchaseAccountId,
+  Value<String?> linkedBudgetId,
+  Value<int?> reminderDays,
+  Value<DateTime?> reminderSnoozedUntil,
+  Value<bool> reminderDismissed,
+  Value<int> rowid,
+});
+
+class $$WishlistTableTableFilterComposer
+    extends Composer<_$AppDatabase, $WishlistTableTable> {
+  $$WishlistTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get estimatedCost => $composableBuilder(
+      column: $table.estimatedCost, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get url => $composableBuilder(
+      column: $table.url, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get installments => $composableBuilder(
+      column: $table.installments, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get hasPromo => $composableBuilder(
+      column: $table.hasPromo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isPurchased => $composableBuilder(
+      column: $table.isPurchased, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get purchasedAt => $composableBuilder(
+      column: $table.purchasedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get purchaseMethod => $composableBuilder(
+      column: $table.purchaseMethod,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get purchaseAccountId => $composableBuilder(
+      column: $table.purchaseAccountId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get linkedBudgetId => $composableBuilder(
+      column: $table.linkedBudgetId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reminderDays => $composableBuilder(
+      column: $table.reminderDays, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get reminderSnoozedUntil => $composableBuilder(
+      column: $table.reminderSnoozedUntil,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get reminderDismissed => $composableBuilder(
+      column: $table.reminderDismissed,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$WishlistTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $WishlistTableTable> {
+  $$WishlistTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get estimatedCost => $composableBuilder(
+      column: $table.estimatedCost,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get url => $composableBuilder(
+      column: $table.url, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get installments => $composableBuilder(
+      column: $table.installments,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get hasPromo => $composableBuilder(
+      column: $table.hasPromo, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isPurchased => $composableBuilder(
+      column: $table.isPurchased, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get purchasedAt => $composableBuilder(
+      column: $table.purchasedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get purchaseMethod => $composableBuilder(
+      column: $table.purchaseMethod,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get purchaseAccountId => $composableBuilder(
+      column: $table.purchaseAccountId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get linkedBudgetId => $composableBuilder(
+      column: $table.linkedBudgetId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reminderDays => $composableBuilder(
+      column: $table.reminderDays,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get reminderSnoozedUntil => $composableBuilder(
+      column: $table.reminderSnoozedUntil,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get reminderDismissed => $composableBuilder(
+      column: $table.reminderDismissed,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$WishlistTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WishlistTableTable> {
+  $$WishlistTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<double> get estimatedCost => $composableBuilder(
+      column: $table.estimatedCost, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<int> get installments => $composableBuilder(
+      column: $table.installments, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasPromo =>
+      $composableBuilder(column: $table.hasPromo, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPurchased => $composableBuilder(
+      column: $table.isPurchased, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get purchasedAt => $composableBuilder(
+      column: $table.purchasedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get purchaseMethod => $composableBuilder(
+      column: $table.purchaseMethod, builder: (column) => column);
+
+  GeneratedColumn<String> get purchaseAccountId => $composableBuilder(
+      column: $table.purchaseAccountId, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedBudgetId => $composableBuilder(
+      column: $table.linkedBudgetId, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderDays => $composableBuilder(
+      column: $table.reminderDays, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get reminderSnoozedUntil => $composableBuilder(
+      column: $table.reminderSnoozedUntil, builder: (column) => column);
+
+  GeneratedColumn<bool> get reminderDismissed => $composableBuilder(
+      column: $table.reminderDismissed, builder: (column) => column);
+}
+
+class $$WishlistTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WishlistTableTable,
+    WishlistEntity,
+    $$WishlistTableTableFilterComposer,
+    $$WishlistTableTableOrderingComposer,
+    $$WishlistTableTableAnnotationComposer,
+    $$WishlistTableTableCreateCompanionBuilder,
+    $$WishlistTableTableUpdateCompanionBuilder,
+    (
+      WishlistEntity,
+      BaseReferences<_$AppDatabase, $WishlistTableTable, WishlistEntity>
+    ),
+    WishlistEntity,
+    PrefetchHooks Function()> {
+  $$WishlistTableTableTableManager(_$AppDatabase db, $WishlistTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WishlistTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WishlistTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WishlistTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<double> estimatedCost = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String?> url = const Value.absent(),
+            Value<int> installments = const Value.absent(),
+            Value<bool> hasPromo = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<bool> isPurchased = const Value.absent(),
+            Value<DateTime?> purchasedAt = const Value.absent(),
+            Value<String?> purchaseMethod = const Value.absent(),
+            Value<String?> purchaseAccountId = const Value.absent(),
+            Value<String?> linkedBudgetId = const Value.absent(),
+            Value<int?> reminderDays = const Value.absent(),
+            Value<DateTime?> reminderSnoozedUntil = const Value.absent(),
+            Value<bool> reminderDismissed = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WishlistTableCompanion(
+            id: id,
+            title: title,
+            estimatedCost: estimatedCost,
+            note: note,
+            url: url,
+            installments: installments,
+            hasPromo: hasPromo,
+            createdAt: createdAt,
+            isPurchased: isPurchased,
+            purchasedAt: purchasedAt,
+            purchaseMethod: purchaseMethod,
+            purchaseAccountId: purchaseAccountId,
+            linkedBudgetId: linkedBudgetId,
+            reminderDays: reminderDays,
+            reminderSnoozedUntil: reminderSnoozedUntil,
+            reminderDismissed: reminderDismissed,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String title,
+            required double estimatedCost,
+            Value<String?> note = const Value.absent(),
+            Value<String?> url = const Value.absent(),
+            Value<int> installments = const Value.absent(),
+            Value<bool> hasPromo = const Value.absent(),
+            required DateTime createdAt,
+            Value<bool> isPurchased = const Value.absent(),
+            Value<DateTime?> purchasedAt = const Value.absent(),
+            Value<String?> purchaseMethod = const Value.absent(),
+            Value<String?> purchaseAccountId = const Value.absent(),
+            Value<String?> linkedBudgetId = const Value.absent(),
+            Value<int?> reminderDays = const Value.absent(),
+            Value<DateTime?> reminderSnoozedUntil = const Value.absent(),
+            Value<bool> reminderDismissed = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WishlistTableCompanion.insert(
+            id: id,
+            title: title,
+            estimatedCost: estimatedCost,
+            note: note,
+            url: url,
+            installments: installments,
+            hasPromo: hasPromo,
+            createdAt: createdAt,
+            isPurchased: isPurchased,
+            purchasedAt: purchasedAt,
+            purchaseMethod: purchaseMethod,
+            purchaseAccountId: purchaseAccountId,
+            linkedBudgetId: linkedBudgetId,
+            reminderDays: reminderDays,
+            reminderSnoozedUntil: reminderSnoozedUntil,
+            reminderDismissed: reminderDismissed,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$WishlistTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $WishlistTableTable,
+    WishlistEntity,
+    $$WishlistTableTableFilterComposer,
+    $$WishlistTableTableOrderingComposer,
+    $$WishlistTableTableAnnotationComposer,
+    $$WishlistTableTableCreateCompanionBuilder,
+    $$WishlistTableTableUpdateCompanionBuilder,
+    (
+      WishlistEntity,
+      BaseReferences<_$AppDatabase, $WishlistTableTable, WishlistEntity>
+    ),
+    WishlistEntity,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5204,6 +6895,10 @@ class $AppDatabaseManager {
       $$PersonsTableTableTableManager(_db, _db.personsTable);
   $$GroupsTableTableTableManager get groupsTable =>
       $$GroupsTableTableTableManager(_db, _db.groupsTable);
+  $$GroupMembersTableTableTableManager get groupMembersTable =>
+      $$GroupMembersTableTableTableManager(_db, _db.groupMembersTable);
   $$UserProfileTableTableTableManager get userProfileTable =>
       $$UserProfileTableTableTableManager(_db, _db.userProfileTable);
+  $$WishlistTableTableTableManager get wishlistTable =>
+      $$WishlistTableTableTableManager(_db, _db.wishlistTable);
 }

@@ -1,60 +1,51 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../../core/database/database_providers.dart';
+import '../../../../core/logic/wishlist_service.dart';
 import '../../domain/models/wishlist_item.dart';
 
-class WishlistNotifier extends StateNotifier<List<WishlistItem>> {
-  WishlistNotifier() : super(_initialData);
+/// Real wishlist stream from DB (active items only)
+final activeWishlistProvider = StreamProvider<List<WishlistItem>>((ref) {
+  return ref.watch(wishlistServiceProvider).watchActive();
+});
 
-  static final List<WishlistItem> _initialData = [
-    WishlistItem(
-      id: 'w1',
-      title: 'PlayStation 5 Pro',
-      estimatedCost: 1200000,
-      createdAt: DateTime.now().subtract(const Duration(days: 9)), 
-      note: 'Para jugar al GTA VI',
-    ),
-    WishlistItem(
-      id: 'w2',
-      title: 'Zapatillas Running',
-      estimatedCost: 180000,
-      createdAt: DateTime.now().subtract(const Duration(days: 2)), 
-      note: 'Las viejas ya están rotas',
-    ),
-    WishlistItem(
-      id: 'w3',
-      title: 'Silla Ergonómica',
-      estimatedCost: 450000,
-      createdAt: DateTime.now().subtract(const Duration(days: 15)), 
-    ),
-  ];
+/// All wishlist items (including purchased)
+final allWishlistProvider = StreamProvider<List<WishlistItem>>((ref) {
+  return ref.watch(wishlistServiceProvider).watchAll();
+});
 
-  void add(WishlistItem item) {
-    state = [item, ...state];
+/// Hourly rate from real salary (monthlySalary / 160)
+final hourlyRateProvider = Provider<double?>((ref) {
+  final profile = ref.watch(userProfileStreamProvider).valueOrNull;
+  if (profile?.monthlySalary != null && profile!.monthlySalary! > 0) {
+    return profile.monthlySalary! / 160;
+  }
+  return null;
+});
+
+/// Global reminder days setting (persisted in SharedPreferences)
+final globalReminderDaysProvider =
+    StateNotifierProvider<ReminderDaysNotifier, int>((ref) {
+  return ReminderDaysNotifier();
+});
+
+class ReminderDaysNotifier extends StateNotifier<int> {
+  ReminderDaysNotifier() : super(15) {
+    _load();
   }
 
-  void remove(String id) {
-    state = state.where((item) => item.id != id).toList();
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getInt('wishlist_reminder_days');
+    if (saved != null && mounted) {
+      state = saved;
+    }
   }
 
-  void updateItem(WishlistItem updatedItem) {
-    state = state.map((item) => item.id == updatedItem.id ? updatedItem : item).toList();
-  }
-
-  void markAsPurchased(String id) {
-    state = state.map((item) => item.id == id
-        ? item.copyWith(isPurchased: true, purchasedAt: DateTime.now())
-        : item).toList();
+  Future<void> setDays(int days) async {
+    state = days.clamp(5, 90);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('wishlist_reminder_days', state);
   }
 }
-
-final mockWishlistProvider = StateNotifierProvider<WishlistNotifier, List<WishlistItem>>((ref) {
-  return WishlistNotifier();
-});
-
-final safeBudgetProvider = StateProvider<double>((ref) => 350000.0);
-
-// Sueldo mock para calcular "horas de vida" / "horas de trabajo"
-final mockHourlyRateProvider = Provider<double>((ref) {
-  // Suponiendo un sueldo de 1.200.000 trabajando 160hs al mes
-  // 1.200.000 / 160 = 7500 pesos la hora.
-  return 7500.0;
-});

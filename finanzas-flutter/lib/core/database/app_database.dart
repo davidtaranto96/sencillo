@@ -9,10 +9,12 @@ import 'tables/accounts_table.dart';
 import 'tables/budgets_table.dart';
 import 'tables/categories_table.dart';
 import 'tables/goals_table.dart';
+import 'tables/group_members_table.dart';
 import 'tables/groups_table.dart';
 import 'tables/persons_table.dart';
 import 'tables/transactions_table.dart';
 import 'tables/user_profile_table.dart';
+import 'tables/wishlist_table.dart';
 
 part 'app_database.g.dart';
 
@@ -24,13 +26,15 @@ part 'app_database.g.dart';
   GoalsTable,
   PersonsTable,
   GroupsTable,
+  GroupMembersTable,
   UserProfileTable,
+  WishlistTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 7;
 
   /// Ensures a default "Efectivo" cash account exists.
   Future<void> ensureDefaultCashAccount() async {
@@ -66,6 +70,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         await migrator.createTable(userProfileTable);
         await ensureDefaultCashAccount();
+      }
+      if (from < 5) {
+        await migrator.createTable(groupMembersTable);
+      }
+      if (from < 6) {
+        await migrator.addColumn(personsTable, personsTable.cbu);
+        await migrator.addColumn(personsTable, personsTable.notes);
+        await migrator.addColumn(groupsTable, groupsTable.startDate);
+        await migrator.addColumn(groupsTable, groupsTable.endDate);
+      }
+      if (from < 7) {
+        await migrator.createTable(wishlistTable);
       }
     },
   );

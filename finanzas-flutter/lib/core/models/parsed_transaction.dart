@@ -45,11 +45,17 @@ class ParsedTransaction {
 
 /// Resultado del proceso de importación.
 class ImportResult {
-  const ImportResult({required this.imported, required this.total, required this.cardName});
+  const ImportResult({
+    required this.imported,
+    required this.total,
+    required this.cardName,
+    this.transactionIds = const [],
+  });
 
   final int imported;
   final int total;
   final String cardName;
+  final List<String> transactionIds;
 }
 
 /// Formato de tarjeta detectado en el PDF.

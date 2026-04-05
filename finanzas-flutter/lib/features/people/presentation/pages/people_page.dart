@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -7,166 +8,134 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../../../core/logic/people_service.dart';
 import '../../domain/models/person.dart';
+import '../../domain/models/group.dart';
 import '../../../../core/utils/format_utils.dart';
 
 import '../../../accounts/domain/models/account.dart' as dom_a;
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
+import '../../../transactions/presentation/pages/transaction_detail_page.dart';
 import 'add_expense_page.dart';
+import 'person_detail_page.dart';
+import 'group_detail_page.dart';
 
 class PeoplePage extends ConsumerStatefulWidget {
-  const PeoplePage({super.key});
+  /// [standalone] = true when pushed on top of the shell (from Más, router).
+  /// In standalone mode the page shows its own FAB and back button.
+  final bool standalone;
+  const PeoplePage({super.key, this.standalone = false});
 
   @override
   ConsumerState<PeoplePage> createState() => _PeoplePageState();
 }
 
-class _PeoplePageState extends ConsumerState<PeoplePage> {
-  bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
+class _PeoplePageState extends ConsumerState<PeoplePage>
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
+  }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final peopleAsync = ref.watch(peopleStreamProvider);
     final globalBalance = ref.watch(globalPeopleBalanceProvider);
-    final isPositive = globalBalance >= 0;
 
-    return DefaultTabController(
-      length: 3,
-      initialIndex: 1, 
-      child: peopleAsync.when(
-        loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
-        data: (allPeople) {
-          // Filtrar personas por búsqueda
-          final query = _searchController.text.toLowerCase();
-          final filteredPeople = allPeople.where((p) {
-            final nameMatch = p.name.toLowerCase().contains(query) || 
-                             (p.alias?.toLowerCase().contains(query) ?? false);
-            // También buscamos en los nombres de las deudas (grupos/conceptos)
-            final debtMatch = p.groupDebts.any((d) => d.groupName.toLowerCase().contains(query));
-            return nameMatch || debtMatch;
-          }).toList();
+    return Scaffold(
+      // FAB only when standalone (pushed on top of shell). When in nav bar the
+      // shell's MorphingFab handles it with proper positioning + animation.
+      floatingActionButton: widget.standalone
+          ? FloatingActionButton(
+              onPressed: () => showPeopleFabMenu(context, ref),
+              backgroundColor: AppTheme.colorTransfer,
+              child: const Icon(Icons.add_rounded, color: Colors.white),
+            )
+          : null,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // ── Header ──
+            _Header(globalBalance: globalBalance, showBack: widget.standalone),
 
-          return Scaffold(
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: _isSearching 
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => setState(() {
-                      _isSearching = false;
-                      _searchController.clear();
-                    }),
-                  )
-                : const BackButton(color: Colors.white),
-              title: _isSearching
-                ? TextField(
-                    controller: _searchController,
-                    autofocus: true,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar por nombre, grupo o gasto...',
-                      hintStyle: TextStyle(color: Colors.white38),
-                      border: InputBorder.none,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  )
-                : Text(
-                    'Personas y Saldos',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
-                  ),
-              actions: [
-                if (!_isSearching)
-                  IconButton(
-                    icon: const Icon(Icons.search, color: Colors.white70), 
-                    onPressed: () => setState(() => _isSearching = true),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.person_add_alt_1_outlined, color: Colors.white70), 
-                  onPressed: () => _showAddPersonPlaceholder(context),
+            // ── Tabs ──
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: AppTheme.colorTransfer.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
-            body: Column(
-              children: [
-                if (!_isSearching)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          isPositive 
-                            ? 'En general, te deben ${formatAmount(globalBalance)}'
-                            : 'En general, debés ${formatAmount(globalBalance.abs())}',
-                          style: GoogleFonts.inter(
-                            color: isPositive ? AppTheme.colorTransfer : AppTheme.colorExpense,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.tune_rounded, color: Colors.white70, size: 20),
-                          onPressed: () => _showFilterPlaceholder(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                TabBar(
-                  indicatorColor: AppTheme.colorTransfer,
-                  labelColor: AppTheme.colorTransfer,
-                  unselectedLabelColor: Colors.white38,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  tabs: const [
-                    Tab(text: 'Grupos'),
-                    Tab(text: 'Amigos'),
-                    Tab(text: 'Actividad'),
-                  ],
-                ),
-
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildGroupsTab(context, ref, query),
-                      _buildFriendsTab(context, filteredPeople),
-                      _buildActivityTab(context, ref),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            floatingActionButton: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 85),
-              child: FloatingActionButton(
-                onPressed: () => _showFabMenu(context),
-                backgroundColor: AppTheme.colorTransfer,
-                foregroundColor: Colors.white,
-                elevation: 8,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                child: const Icon(Icons.add_rounded, size: 28),
+                dividerHeight: 0,
+                labelColor: AppTheme.colorTransfer,
+                unselectedLabelColor: Colors.white38,
+                labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+                tabs: const [
+                  Tab(text: 'Grupos', height: 40),
+                  Tab(text: 'Amigos', height: 40),
+                  Tab(text: 'Actividad', height: 40),
+                ],
               ),
             ),
-          );
-        },
+
+            const SizedBox(height: 8),
+
+            // ── Content ──
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _GroupsTab(),
+                  peopleAsync.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(
+                        child: Text('Error: $e',
+                            style: const TextStyle(color: Colors.white))),
+                    data: (people) => _FriendsTab(people: people),
+                  ),
+                  _ActivityTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+      // FAB is rendered by AppShell's MorphingFab
     );
   }
 
-  void _showFabMenu(BuildContext context) {
+}
+
+/// Top-level so the shell's MorphingFab can call it too.
+void showPeopleFabMenu(BuildContext context, WidgetRef ref) {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      builder: (ctx) => SafeArea(
+        child: Container(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
         decoration: const BoxDecoration(
           color: Color(0xFF18181F),
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -175,377 +144,92 @@ class _PeoplePageState extends ConsumerState<PeoplePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(2)),
             ),
-            _buildMenuOption(
-              context, 
-              icon: Icons.receipt_long_rounded, 
+            _MenuOption(
+              icon: Icons.receipt_long_rounded,
               color: AppTheme.colorTransfer,
-              title: 'Añadir gasto repartido',
+              title: 'Gasto compartido',
               subtitle: 'Dividí una cuenta con alguien',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AddExpensePage()));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const AddExpensePage()));
               },
             ),
-            const SizedBox(height: 12),
-            _buildMenuOption(
-              context, 
-              icon: Icons.money_off_rounded, 
+            const SizedBox(height: 10),
+            _MenuOption(
+              icon: Icons.money_off_rounded,
               color: AppTheme.colorExpense,
               title: 'Registrar deuda',
-              subtitle: 'Anotá algo que debés o te deben',
+              subtitle: 'Prestaste o te prestaron plata',
               onTap: () {
                 Navigator.pop(context);
-                _showAddPersonPlaceholder(context); // Placeholder for now
+                _showRecordDebtSheet(context, ref);
               },
             ),
-            const SizedBox(height: 12),
-            _buildMenuOption(
-              context, 
-              icon: Icons.handshake_outlined, 
+            const SizedBox(height: 10),
+            _MenuOption(
+              icon: Icons.handshake_outlined,
               color: AppTheme.colorIncome,
-              title: 'Registrar pago / cobro',
-              subtitle: 'Liquidar deudas pendientes',
+              title: 'Liquidar deuda',
+              subtitle: 'Pagá o cobrá deudas pendientes',
               onTap: () {
                 Navigator.pop(context);
-                // Search for person to liquidate
+                _showLiquidateSheet(context, ref);
+              },
+            ),
+            const SizedBox(height: 10),
+            _MenuOption(
+              icon: Icons.person_add_rounded,
+              color: Colors.white54,
+              title: 'Agregar amigo',
+              subtitle: 'Nuevo contacto para compartir',
+              onTap: () {
+                Navigator.pop(context);
+                showAddPersonSheet(context, ref);
+              },
+            ),
+            const SizedBox(height: 10),
+            _MenuOption(
+              icon: Icons.group_add_rounded,
+              color: Colors.white54,
+              title: 'Crear grupo',
+              subtitle: 'Viaje, casa, evento...',
+              onTap: () {
+                Navigator.pop(context);
+                showCreateGroupSheet(context, ref);
               },
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildMenuOption(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white12, size: 14),
-          ],
-        ),
       ),
     );
   }
 
-  void _showAddPersonPlaceholder(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1D2E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.person_add_alt_1_outlined, color: AppTheme.colorTransfer, size: 48),
-            const SizedBox(height: 16),
-            const Text('Añadir contacto', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            const TextField(decoration: InputDecoration(labelText: 'Email o nombre', hintText: 'ej. juan@gmail.com')),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.colorTransfer),
-                child: const Text('Continuar'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFilterPlaceholder(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1D2E),
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(24),
-        children: [
-          const Text('Filtrar actividad', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          ListTile(title: const Text('Este mes'), leading: const Icon(Icons.calendar_today), onTap: () => Navigator.pop(context)),
-          ListTile(title: const Text('Último año'), leading: const Icon(Icons.history), onTap: () => Navigator.pop(context)),
-          ListTile(title: const Text('Solo deudas pendientes'), leading: const Icon(Icons.money_off), onTap: () => Navigator.pop(context)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFriendsTab(BuildContext context, List<Person> people) {
+void _showRecordDebtSheet(BuildContext context, WidgetRef ref) {
+    final people = ref.read(peopleStreamProvider).valueOrNull ?? [];
     if (people.isEmpty) {
-      return const Center(child: Text('No se encontraron personas', style: TextStyle(color: Colors.white38)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Primero agregá un amigo')),
+      );
+      return;
     }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      physics: const BouncingScrollPhysics(),
-      itemCount: people.length,
-      itemBuilder: (context, index) {
-        final person = people[index];
-        return _FriendListTile(person: person);
-      },
-    );
-  }
+    final accounts =
+        ref.read(accountsStreamProvider).valueOrNull ?? [];
+    final sources = accounts.toList();
 
-  Widget _buildGroupsTab(BuildContext context, WidgetRef ref, String query) {
-    final allGroups = ref.watch(groupsStreamProvider).valueOrNull ?? [];
-    final groups = allGroups.where((g) => g.name.toLowerCase().contains(query)).toList();
-
-    if (groups.isEmpty) {
-      return const Center(child: Text('No se encontraron grupos', style: TextStyle(color: Colors.white38)));
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: groups.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final group = groups[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2C).withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 50, height: 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.colorTransfer.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.group_rounded, color: AppTheme.colorTransfer),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(group.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                    const Text('Sin deudas pendientes', style: TextStyle(color: Colors.white38, fontSize: 13)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white24),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildActivityTab(BuildContext context, WidgetRef ref) {
-    final transactionsAsync = ref.watch(transactionsStreamProvider);
-
-    return transactionsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.white))),
-      data: (transactions) {
-        final peopleTxs = transactions.where((t) => t.personId != null).toList();
-        
-        if (peopleTxs.isEmpty) {
-          return const Center(
-            child: Text('No hay actividad reciente', style: TextStyle(color: Colors.white38)),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(20),
-          itemCount: peopleTxs.length,
-          itemBuilder: (context, index) {
-            final tx = peopleTxs[index];
-            final isExpense = tx.type == dom_tx.TransactionType.expense;
-            final color = isExpense ? AppTheme.colorExpense : AppTheme.colorIncome;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                children: [
-                   Container(
-                     padding: const EdgeInsets.all(10),
-                     decoration: BoxDecoration(
-                       color: color.withValues(alpha: 0.1),
-                       borderRadius: BorderRadius.circular(12),
-                     ),
-                     child: Icon(
-                       tx.isShared == true ? Icons.group_outlined : Icons.person_outline,
-                       color: color, size: 20,
-                     ),
-                   ),
-                   const SizedBox(width: 16),
-                   Expanded(
-                     child: Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: [
-                         Text(tx.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                         Text(formatDate(tx.date), style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                       ],
-                     ),
-                   ),
-                   Text(
-                     '${isExpense ? '-' : '+'}${formatAmount(tx.amount)}',
-                     style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w700, fontSize: 14),
-                   ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _FriendListTile extends ConsumerWidget {
-  final Person person;
-  const _FriendListTile({required this.person});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isPositive = person.totalBalance >= 0;
-    final color = isPositive ? AppTheme.colorTransfer : AppTheme.colorExpense;
-    final fmt = NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                backgroundColor: person.avatarColor.withValues(alpha: 0.2),
-                radius: 20,
-                child: Text(
-                  person.displayName[0].toUpperCase(),
-                  style: TextStyle(color: person.avatarColor, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      person.displayName,
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    ...person.groupDebts.map((debt) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Row(
-                        children: [
-                          Container(width: 20, height: 1, color: Colors.white12),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                style: const TextStyle(fontSize: 13, color: Colors.white54),
-                                children: [
-                                  TextSpan(text: person.displayName),
-                                  TextSpan(text: debt.amount > 0 ? ' te debe ' : ' debés a '),
-                                  TextSpan(
-                                    text: fmt.format(debt.amount.abs()),
-                                    style: TextStyle(
-                                      color: debt.amount > 0 
-                                          ? AppTheme.colorTransfer.withValues(alpha: 0.8) 
-                                          : AppTheme.colorExpense.withValues(alpha: 0.8),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const TextSpan(text: ' para '),
-                                  TextSpan(text: '"${debt.groupName}"', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    isPositive ? 'te debe' : 'debés',
-                    style: const TextStyle(color: Colors.white38, fontSize: 11),
-                  ),
-                  Text(
-                    fmt.format(person.totalBalance.abs()),
-                    style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                  const SizedBox(height: 8),
-                  if (person.totalBalance != 0)
-                    TextButton(
-                      onPressed: () => _showLiquidateDialog(context, ref, person),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        isPositive ? 'Me pagó' : 'Pagarle',
-                        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const Divider(color: Colors.white10, height: 1, indent: 76),
-      ],
-    );
-  }
-
-  void _showLiquidateDialog(BuildContext context, WidgetRef ref, Person person) {
-    final accounts = ref.read(accountsStreamProvider).value ?? [];
-    final sources = accounts.where((a) => !a.isCreditCard).toList();
-    dom_a.Account? selectedSource = sources.isNotEmpty ? sources.first : null;
-    final amountController = TextEditingController(text: formatInitialAmount(person.totalBalance.abs()));
+    Person? selected;
+    bool iLent = true;
+    final amountCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    dom_a.Account? selectedAccount = sources.isNotEmpty ? sources.first : null;
 
     showModalBottomSheet(
       context: context,
@@ -553,57 +237,1435 @@ class _FriendListTile extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => Container(
-          padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 100),
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85),
+          padding: EdgeInsets.fromLTRB(
+              24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 40),
           decoration: const BoxDecoration(
             color: Color(0xFF18181F),
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
           ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                Text('Registrar deuda',
+                    style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+
+                // Person selector
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: people.map((p) {
+                    final isSelected = selected?.id == p.id;
+                    return GestureDetector(
+                      onTap: () => setState(() => selected = p),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.colorTransfer.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppTheme.colorTransfer.withValues(alpha: 0.4)
+                                : Colors.white.withValues(alpha: 0.06),
+                          ),
+                        ),
+                        child: Text(p.displayName,
+                            style: TextStyle(
+                                color: isSelected
+                                    ? AppTheme.colorTransfer
+                                    : Colors.white70,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+
+                // Direction toggle
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => iLent = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: iLent
+                                ? AppTheme.colorIncome.withValues(alpha: 0.15)
+                                : Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text('Le presté',
+                                style: TextStyle(
+                                    color: iLent
+                                        ? AppTheme.colorIncome
+                                        : Colors.white38,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => iLent = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !iLent
+                                ? AppTheme.colorExpense.withValues(alpha: 0.15)
+                                : Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text('Me prestó',
+                                style: TextStyle(
+                                    color: !iLent
+                                        ? AppTheme.colorExpense
+                                        : Colors.white38,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsSeparatorFormatter()],
+                  style:
+                      const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700),
+                  decoration: const InputDecoration(
+                    prefixText: '\$ ',
+                    prefixStyle: TextStyle(color: Colors.white24, fontSize: 24),
+                    hintText: '0',
+                    hintStyle: TextStyle(color: Colors.white12),
+                    border: InputBorder.none,
+                  ),
+                ),
+                TextField(
+                  controller: descCtrl,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  decoration: const InputDecoration(
+                    hintText: 'Descripción (opcional)',
+                    hintStyle: TextStyle(color: Colors.white24),
+                    border: InputBorder.none,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Account
+                if (sources.isNotEmpty)
+                  DropdownButton<dom_a.Account>(
+                    value: selectedAccount,
+                    dropdownColor: const Color(0xFF1E1E2C),
+                    isExpanded: true,
+                    style: const TextStyle(color: Colors.white),
+                    items: sources
+                        .map((s) => DropdownMenuItem(
+                            value: s,
+                            child:
+                                Text('${s.name} (${formatAmount(s.balance)})')))
+                        .toList(),
+                    onChanged: (val) => setState(() => selectedAccount = val),
+                  ),
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: selected == null || selectedAccount == null
+                        ? null
+                        : () async {
+                            final amount = parseFormattedAmount(amountCtrl.text);
+                            if (amount <= 0) return;
+                            await ref.read(peopleServiceProvider).recordDirectDebt(
+                              personId: selected!.id,
+                              amount: amount,
+                              iLent: iLent,
+                              description: descCtrl.text.isNotEmpty
+                                  ? descCtrl.text
+                                  : (iLent ? 'Préstamo' : 'Deuda'),
+                              accountId: selectedAccount?.id,
+                            );
+                            if (context.mounted) Navigator.pop(ctx);
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.colorTransfer,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('Registrar',
+                        style:
+                            TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+void _showLiquidateSheet(BuildContext context, WidgetRef ref) {
+    final people = ref.read(peopleStreamProvider).valueOrNull ?? [];
+    final withBalance = people.where((p) => p.totalBalance != 0).toList();
+    if (withBalance.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay deudas pendientes')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        decoration: const BoxDecoration(
+          color: Color(0xFF18181F),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Text('Liquidar deuda',
+                style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            const Text('Elegí a quién pagarle o cobrarle',
+                style: TextStyle(color: Colors.white38, fontSize: 13)),
+            const SizedBox(height: 16),
+            ...withBalance.map(
+              (p) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showLiquidateAmountSheet(context, ref, p);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor:
+                              p.avatarColor.withValues(alpha: 0.2),
+                          child: Text(p.displayName[0].toUpperCase(),
+                              style: TextStyle(
+                                  color: p.avatarColor,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(p.displayName,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        Text(
+                          p.totalBalance > 0
+                              ? 'Te debe ${formatAmount(p.totalBalance)}'
+                              : 'Le debés ${formatAmount(p.totalBalance.abs())}',
+                          style: TextStyle(
+                            color: p.totalBalance > 0
+                                ? AppTheme.colorIncome
+                                : AppTheme.colorExpense,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+void _showLiquidateAmountSheet(BuildContext context, WidgetRef ref, Person person) {
+    final accounts = ref.read(accountsStreamProvider).value ?? [];
+    final sources = accounts.toList();
+    dom_a.Account? selectedSource; // null = sin cuenta
+    final amountController =
+        TextEditingController(text: formatInitialAmount(person.totalBalance.abs()));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => Container(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85),
+          padding: EdgeInsets.fromLTRB(
+              24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 40),
+          decoration: const BoxDecoration(
+            color: Color(0xFF18181F),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                Text(
+                  person.totalBalance > 0
+                      ? '${person.displayName} te paga'
+                      : 'Le pagás a ${person.displayName}',
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700),
+                ),
+                if (sources.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Cuenta (opcional)',
+                      style: TextStyle(color: Colors.white38, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  DropdownButton<dom_a.Account?>(
+                    value: selectedSource,
+                    dropdownColor: const Color(0xFF1E1E2C),
+                    isExpanded: true,
+                    style: const TextStyle(color: Colors.white),
+                    hint: const Text('Sin cuenta (solo ajustar saldo)',
+                        style: TextStyle(color: Colors.white38, fontSize: 14)),
+                    items: [
+                      const DropdownMenuItem<dom_a.Account?>(
+                        value: null,
+                        child: Text('Sin cuenta',
+                            style: TextStyle(color: Colors.white54)),
+                      ),
+                      ...sources.map((s) => DropdownMenuItem<dom_a.Account?>(
+                          value: s,
+                          child:
+                              Text('${s.name} (${formatAmount(s.balance)})'))),
+                    ],
+                    onChanged: (val) => setState(() => selectedSource = val),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsSeparatorFormatter()],
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700),
+                  decoration: const InputDecoration(
+                    prefixText: '\$ ',
+                    prefixStyle: TextStyle(color: Colors.white24, fontSize: 24),
+                    labelText: 'Monto a liquidar',
+                    labelStyle: TextStyle(color: AppTheme.colorTransfer),
+                    border: InputBorder.none,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: () async {
+                            final amount =
+                                parseFormattedAmount(amountController.text);
+                            if (amount <= 0) return;
+                            final actualAmount = person.totalBalance > 0
+                                ? amount
+                                : -amount;
+                            await ref.read(peopleServiceProvider).liquidateDebt(
+                              personId: person.id,
+                              amount: actualAmount,
+                              accountId: selectedSource?.id,
+                            );
+                            if (context.mounted) Navigator.pop(ctx);
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.colorTransfer,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('Confirmar',
+                        style:
+                            TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// ─── Header ──────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final double globalBalance;
+  final bool showBack;
+  const _Header({required this.globalBalance, this.showBack = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPositive = globalBalance >= 0;
+    final isZero = globalBalance == 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (showBack) ...[
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white54, size: 20),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text('Personas',
+                  style: GoogleFonts.inter(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (isZero)
+            const Text('Estás al día con todos',
+                style: TextStyle(color: Colors.white38, fontSize: 14))
+          else
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isPositive
+                        ? AppTheme.colorIncome
+                        : AppTheme.colorExpense,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isPositive
+                      ? 'Te deben ${formatAmount(globalBalance)}'
+                      : 'Debés ${formatAmount(globalBalance.abs())}',
+                  style: TextStyle(
+                    color: isPositive
+                        ? AppTheme.colorIncome
+                        : AppTheme.colorExpense,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Friends Tab ──────────────────────────────────────
+
+class _FriendsTab extends ConsumerWidget {
+  final List<Person> people;
+  const _FriendsTab({required this.people});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (people.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.people_outline_rounded,
+                size: 48, color: Colors.white.withValues(alpha: 0.15)),
+            const SizedBox(height: 12),
+            const Text('Sin amigos todavía',
+                style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500)),
+            const SizedBox(height: 4),
+            const Text('Agregá personas para compartir gastos',
+                style: TextStyle(color: Colors.white24, fontSize: 13)),
+            const SizedBox(height: 20),
+            TextButton.icon(
+              onPressed: () => showAddPersonSheet(context, ref),
+              icon: const Icon(Icons.person_add_rounded, size: 18),
+              label: const Text('Agregar amigo'),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.colorTransfer),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Sort: with balance first, then alphabetical
+    final sorted = List<Person>.from(people)
+      ..sort((a, b) {
+        if (a.totalBalance != 0 && b.totalBalance == 0) return -1;
+        if (a.totalBalance == 0 && b.totalBalance != 0) return 1;
+        return a.displayName.compareTo(b.displayName);
+      });
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 120),
+      physics: const BouncingScrollPhysics(),
+      itemCount: sorted.length,
+      itemBuilder: (context, index) =>
+          _FriendCard(person: sorted[index]),
+    );
+  }
+}
+
+class _FriendCard extends StatelessWidget {
+  final Person person;
+  const _FriendCard({required this.person});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPositive = person.totalBalance > 0;
+    final isZero = person.totalBalance == 0;
+    final color = isZero
+        ? Colors.white38
+        : isPositive
+            ? AppTheme.colorIncome
+            : AppTheme.colorExpense;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => PersonDetailPage(person: person)),
+      ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E2C).withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        ),
+        child: Row(
+          children: [
+            // Avatar
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: person.avatarColor.withValues(alpha: 0.2),
+              child: Text(
+                person.displayName[0].toUpperCase(),
+                style: TextStyle(
+                    color: person.avatarColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16),
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Name + status
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    person.displayName,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isZero
+                        ? 'Al día'
+                        : isPositive
+                            ? 'te debe'
+                            : 'le debés',
+                    style: TextStyle(color: color, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+
+            // Amount
+            if (!isZero)
+              Text(
+                formatAmount(person.totalBalance.abs()),
+                style: GoogleFonts.inter(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            if (isZero)
+              Icon(Icons.check_circle_rounded,
+                  color: Colors.white.withValues(alpha: 0.15), size: 20),
+
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                color: Colors.white.withValues(alpha: 0.15), size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Groups Tab ──────────────────────────────────────
+
+class _GroupsTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groupsAsync = ref.watch(groupsStreamProvider);
+
+    return groupsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+          child: Text('Error: $e',
+              style: const TextStyle(color: Colors.white))),
+      data: (groups) {
+        if (groups.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.group_outlined,
+                    size: 48, color: Colors.white.withValues(alpha: 0.15)),
+                const SizedBox(height: 12),
+                const Text('Sin grupos',
+                    style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                const Text('Creá grupos para viajes, casa, eventos...',
+                    style: TextStyle(color: Colors.white24, fontSize: 13)),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: () => showCreateGroupSheet(context, ref),
+                  icon: const Icon(Icons.group_add_rounded, size: 18),
+                  label: const Text('Crear grupo'),
+                  style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.colorTransfer),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 4, bottom: 120),
+          physics: const BouncingScrollPhysics(),
+          itemCount: groups.length,
+          itemBuilder: (context, index) =>
+              _GroupCard(group: groups[index]),
+        );
+      },
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  final ExpenseGroup group;
+  const _GroupCard({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final memberCount = group.members.length;
+    final hasExpenses = group.totalGroupExpense > 0;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => GroupDetailPage(group: group)),
+      ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E2C).withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        ),
+        child: Row(
+          children: [
+            // Group icon
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: AppTheme.colorTransfer.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.group_rounded,
+                  color: AppTheme.colorTransfer, size: 22),
+            ),
+            const SizedBox(width: 14),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(group.name,
+                      style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15)),
+                  const SizedBox(height: 2),
+                  Text(
+                    memberCount == 0
+                        ? 'Sin miembros'
+                        : '$memberCount miembro${memberCount == 1 ? '' : 's'}',
+                    style:
+                        const TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+
+            if (hasExpenses)
+              Text(
+                formatAmount(group.totalGroupExpense),
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                color: Colors.white.withValues(alpha: 0.15), size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Activity Tab ────────────────────────────────────
+
+class _ActivityTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final transactionsAsync = ref.watch(transactionsStreamProvider);
+
+    return transactionsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+          child: Text('Error: $e',
+              style: const TextStyle(color: Colors.white))),
+      data: (transactions) {
+        final peopleTxs =
+            transactions.where((t) => t.personId != null).toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
+
+        if (peopleTxs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long_outlined,
+                    size: 48, color: Colors.white.withValues(alpha: 0.15)),
+                const SizedBox(height: 12),
+                const Text('Sin actividad',
+                    style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                const Text('Las transacciones compartidas aparecerán acá',
+                    style: TextStyle(color: Colors.white24, fontSize: 13)),
+              ],
+            ),
+          );
+        }
+
+        // Group by date
+        final grouped = <String, List<dom_tx.Transaction>>{};
+        for (final tx in peopleTxs) {
+          final key = _dateGroupKey(tx.date);
+          grouped.putIfAbsent(key, () => []).add(tx);
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 4, bottom: 120),
+          physics: const BouncingScrollPhysics(),
+          itemCount: grouped.length,
+          itemBuilder: (context, index) {
+            final key = grouped.keys.elementAt(index);
+            final txs = grouped[key]!;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: Text(key,
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3)),
+                ),
+                ...txs.map((tx) => _ActivityRow(tx: tx)),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static String _dateGroupKey(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final txDay = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(txDay).inDays;
+
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Ayer';
+    if (diff < 7) return 'Esta semana';
+    if (date.month == now.month && date.year == now.year) return 'Este mes';
+    return DateFormat('MMMM yyyy', 'es').format(date);
+  }
+}
+
+class _ActivityRow extends ConsumerWidget {
+  final dom_tx.Transaction tx;
+  const _ActivityRow({required this.tx});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isExpense = tx.type == dom_tx.TransactionType.expense;
+    final isLoanGiven = tx.type == dom_tx.TransactionType.loanGiven;
+    final isIncome = tx.type == dom_tx.TransactionType.income;
+
+    Color color;
+    IconData icon;
+    String subtitle;
+
+    if (tx.isShared) {
+      color = AppTheme.colorTransfer;
+      icon = Icons.call_split_rounded;
+      subtitle = 'Gasto compartido';
+    } else if (isLoanGiven) {
+      color = AppTheme.colorWarning;
+      icon = Icons.arrow_upward_rounded;
+      subtitle = 'Préstamo dado';
+    } else if (isIncome) {
+      color = AppTheme.colorIncome;
+      icon = Icons.arrow_downward_rounded;
+      subtitle = 'Liquidación';
+    } else {
+      color = AppTheme.colorExpense;
+      icon = Icons.arrow_downward_rounded;
+      subtitle = isExpense ? 'Deuda' : 'Cobro';
+    }
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TransactionDetailPage(txId: tx.id)),
+      ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E2C).withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tx.title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14)),
+                  Text(subtitle,
+                      style:
+                          const TextStyle(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+            Text(
+              '${isExpense || isLoanGiven ? '-' : '+'}${formatAmount(tx.amount)}',
+              style: GoogleFonts.inter(
+                  color: color, fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Menu Option ─────────────────────────────────────
+
+class _MenuOption extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _MenuOption({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14)),
+                  Text(subtitle,
+                      style:
+                          const TextStyle(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white12, size: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Shared Bottom Sheets ────────────────────────────
+
+void showAddPersonSheet(BuildContext context, WidgetRef ref) {
+  final nameCtrl = TextEditingController();
+  final aliasCtrl = TextEditingController();
+  final cbuCtrl = TextEditingController();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => Container(
+      constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+      padding: EdgeInsets.fromLTRB(
+          24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 40),
+      decoration: const BoxDecoration(
+        color: Color(0xFF18181F),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Text('Agregar amigo',
+                style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Nombre',
+                labelStyle: const TextStyle(color: AppTheme.colorTransfer),
+                hintText: 'ej. Juan Pérez',
+                hintStyle: const TextStyle(color: Colors.white24),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide:
+                      BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppTheme.colorTransfer),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: aliasCtrl,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Apodo (opcional)',
+                labelStyle:
+                    TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                hintText: 'ej. Juani',
+                hintStyle: const TextStyle(color: Colors.white24),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide:
+                      BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppTheme.colorTransfer),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: cbuCtrl,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'CBU / CVU / Alias (opcional)',
+                labelStyle:
+                    TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                hintText: 'Para pagos bancarios',
+                hintStyle: const TextStyle(color: Colors.white24),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide:
+                      BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppTheme.colorTransfer),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  if (name.isEmpty) return;
+                  final alias = aliasCtrl.text.trim();
+                  final cbu = cbuCtrl.text.trim();
+                  await ref.read(peopleServiceProvider).addPerson(
+                    name: name,
+                    alias: alias.isEmpty ? null : alias,
+                    cbu: cbu.isEmpty ? null : cbu,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.colorTransfer,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Text('Agregar',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void showCreateGroupSheet(BuildContext context, WidgetRef ref) {
+  final nameCtrl = TextEditingController();
+  final people = ref.read(peopleStreamProvider).valueOrNull ?? [];
+  final selectedIds = <String>{};
+  DateTime? startDate;
+  DateTime? endDate;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => StatefulBuilder(
+      builder: (context, setState) => Container(
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 40),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
+        decoration: const BoxDecoration(
+          color: Color(0xFF18181F),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Liquidar con ${person.displayName}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              DropdownButton<dom_a.Account>(
-                value: selectedSource,
-                dropdownColor: const Color(0xFF1E1E2C),
-                isExpanded: true,
-                style: const TextStyle(color: Colors.white),
-                items: sources.map((s) => DropdownMenuItem(value: s, child: Text('${s.name} (${formatAmount(s.balance)})'))).toList(),
-                onChanged: (val) => setState(() => selectedSource = val),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
               ),
-              const SizedBox(height: 16),
+              Text('Crear grupo',
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 20),
               TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsSeparatorFormatter()],
-                style: const TextStyle(color: Colors.white, fontSize: 24),
-                decoration: const InputDecoration(prefixText: '\$ ', labelText: 'Monto a liquidar', labelStyle: TextStyle(color: AppTheme.colorTransfer)),
+                controller: nameCtrl,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                decoration: InputDecoration(
+                  labelText: 'Nombre del grupo',
+                  labelStyle: const TextStyle(color: AppTheme.colorTransfer),
+                  hintText: 'ej. Viaje a Bariloche',
+                  hintStyle: const TextStyle(color: Colors.white24),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        const BorderSide(color: AppTheme.colorTransfer),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+              // Date pickers
+              Text('Periodo / viaje (opcional)',
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDateTile(
+                      context: context,
+                      label: 'Inicio',
+                      date: startDate,
+                      onPick: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: startDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.dark(
+                                  primary: AppTheme.colorTransfer,
+                                  surface: Color(0xFF1E1E2C)),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (picked != null) setState(() => startDate = picked);
+                      },
+                      onClear: () => setState(() => startDate = null),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildDateTile(
+                      context: context,
+                      label: 'Fin',
+                      date: endDate,
+                      onPick: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate:
+                              endDate ?? startDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.dark(
+                                  primary: AppTheme.colorTransfer,
+                                  surface: Color(0xFF1E1E2C)),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (picked != null) setState(() => endDate = picked);
+                      },
+                      onClear: () => setState(() => endDate = null),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (people.isNotEmpty) ...[
+                const Text('Miembros',
+                    style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: people.map((p) {
+                    final isSelected = selectedIds.contains(p.id);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            selectedIds.remove(p.id);
+                          } else {
+                            selectedIds.add(p.id);
+                          }
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.colorTransfer
+                                  .withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppTheme.colorTransfer
+                                    .withValues(alpha: 0.4)
+                                : Colors.white.withValues(alpha: 0.06),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isSelected)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Icon(Icons.check_circle_rounded,
+                                    color: AppTheme.colorTransfer, size: 16),
+                              ),
+                            Text(p.displayName,
+                                style: TextStyle(
+                                    color: isSelected
+                                        ? AppTheme.colorTransfer
+                                        : Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: selectedSource == null ? null : () async {
-                    final amount = parseFormattedAmount(amountController.text);
-                    final actualAmount = person.totalBalance > 0 ? amount : -amount;
-                    
-                    await ref.read(peopleServiceProvider).liquidateDebt(
-                      personId: person.id,
-                      amount: actualAmount,
-                      accountId: selectedSource!.id,
+                  onPressed: () async {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) return;
+                    await ref.read(peopleServiceProvider).addGroup(
+                      name: name,
+                      memberIds: selectedIds.toList(),
+                      startDate: startDate,
+                      endDate: endDate,
                     );
-                    if (context.mounted) Navigator.pop(ctx);
+                    if (ctx.mounted) Navigator.pop(ctx);
                   },
-                  style: FilledButton.styleFrom(backgroundColor: AppTheme.colorTransfer),
-                  child: const Text('Confirmar Liquidación'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.colorTransfer,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Crear grupo',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+Widget _buildDateTile({
+  required BuildContext context,
+  required String label,
+  required DateTime? date,
+  required VoidCallback onPick,
+  required VoidCallback onClear,
+}) {
+  return GestureDetector(
+    onTap: onPick,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: date != null
+            ? AppTheme.colorTransfer.withValues(alpha: 0.06)
+            : Colors.white.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: date != null
+              ? AppTheme.colorTransfer.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.06),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today_rounded,
+              color: date != null
+                  ? AppTheme.colorTransfer.withValues(alpha: 0.6)
+                  : Colors.white24,
+              size: 14),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              date != null
+                  ? DateFormat('d MMM', 'es').format(date)
+                  : label,
+              style: TextStyle(
+                color: date != null ? Colors.white : Colors.white38,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (date != null)
+            GestureDetector(
+              onTap: onClear,
+              child: Icon(Icons.close_rounded, color: Colors.white24, size: 14),
+            ),
+        ],
+      ),
+    ),
+  );
 }

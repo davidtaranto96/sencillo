@@ -50,6 +50,17 @@ class Transaction extends Equatable {
     this.isExtraordinary = false,
   });
 
+  /// Whether this transaction was added retroactively to a past month
+  /// and should NOT affect the current account balance.
+  bool get isRetroactive => note != null && note!.contains('[retroactivo]');
+
+  /// Returns the note without the retroactive tag for display.
+  String? get displayNote {
+    if (note == null) return null;
+    final cleaned = note!.replaceAll('[retroactivo]', '').trim();
+    return cleaned.isEmpty ? null : cleaned;
+  }
+
   /// Pendiente a recuperar
   double get pendingToRecover =>
       (sharedOtherAmount ?? 0) - (sharedRecovered ?? 0);

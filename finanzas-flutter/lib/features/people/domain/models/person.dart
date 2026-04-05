@@ -16,7 +16,9 @@ class Person extends Equatable {
   final String name;
   final String? alias;
   final Color avatarColor;
-  final double totalBalance; 
+  final double totalBalance;
+  final String? cbu;
+  final String? notes;
   final List<DebtDetail> groupDebts;
   // Positivo: Ellos me deben plata a mí.
   // Negativo: Yo les debo plata a ellos.
@@ -27,6 +29,8 @@ class Person extends Equatable {
     this.alias,
     required this.avatarColor,
     this.totalBalance = 0.0,
+    this.cbu,
+    this.notes,
     this.groupDebts = const [],
   });
 
@@ -36,5 +40,5 @@ class Person extends Equatable {
   bool get iOweThem => totalBalance < 0;
 
   @override
-  List<Object?> get props => [id, name, totalBalance, groupDebts];
+  List<Object?> get props => [id, name, totalBalance, cbu, notes, groupDebts];
 }

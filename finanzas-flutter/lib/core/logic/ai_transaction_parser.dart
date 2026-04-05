@@ -7,9 +7,27 @@ import '../models/nl_transaction.dart';
 import '../../features/accounts/domain/models/account.dart' as dom_acc;
 import '../../features/people/domain/models/person.dart' as dom_p;
 import '../../features/goals/domain/models/goal.dart';
+import '../../features/budget/domain/models/budget.dart' as dom_b;
 import '../../features/wishlist/domain/models/wishlist_item.dart';
 
 const _apiKeyPref = 'anthropic_api_key';
+
+/// Strips common Spanish diacritics for fuzzy matching.
+String _stripAccents(String input) {
+  return input
+      .replaceAll(RegExp('[áàäâ]'), 'a')
+      .replaceAll(RegExp('[éèëê]'), 'e')
+      .replaceAll(RegExp('[íìïî]'), 'i')
+      .replaceAll(RegExp('[óòöô]'), 'o')
+      .replaceAll(RegExp('[úùüû]'), 'u')
+      .replaceAll('ñ', 'n')
+      .replaceAll(RegExp('[ÁÀÄÂ]'), 'A')
+      .replaceAll(RegExp('[ÉÈËÊ]'), 'E')
+      .replaceAll(RegExp('[ÍÌÏÎ]'), 'I')
+      .replaceAll(RegExp('[ÓÒÖÔ]'), 'O')
+      .replaceAll(RegExp('[ÚÙÜÛ]'), 'U')
+      .replaceAll('Ñ', 'N');
+}
 
 class AiTransactionParser {
   // ─────────────────────────────────────────────
@@ -38,6 +56,7 @@ class AiTransactionParser {
     required List<dom_acc.Account> accounts,
     required List<dom_p.Person> people,
     required List<Goal> goals,
+    required List<dom_b.Budget> budgets,
     required List<WishlistItem> wishlist,
   }) async {
     final apiKey = await getApiKey();
@@ -50,6 +69,7 @@ class AiTransactionParser {
           accounts: accounts,
           people: people,
           goals: goals,
+          budgets: budgets,
           wishlist: wishlist,
         );
       } catch (_) {
@@ -62,6 +82,7 @@ class AiTransactionParser {
       accounts: accounts,
       people: people,
       goals: goals,
+      budgets: budgets,
       wishlist: wishlist,
     );
   }
@@ -75,6 +96,7 @@ class AiTransactionParser {
     required List<dom_acc.Account> accounts,
     required List<dom_p.Person> people,
     required List<Goal> goals,
+    required List<dom_b.Budget> budgets,
     required List<WishlistItem> wishlist,
   }) async {
     final accountsJson = accounts.map((a) => {
@@ -91,6 +113,7 @@ class AiTransactionParser {
       'owesMe': p.owesMe,
     }).toList();
     final goalsJson = goals.where((g) => !g.isCompleted).map((g) => {'id': g.id, 'name': g.name, 'remaining': g.remaining}).toList();
+    final budgetsJson = budgets.map((b) => {'categoryId': b.categoryId, 'categoryName': b.categoryName, 'limit': b.limitAmount, 'spent': b.spentAmount}).toList();
     final wishlistJson = wishlist.where((w) => !w.isPurchased).map((w) => {'id': w.id, 'name': w.title, 'cost': w.estimatedCost}).toList();
 
     final prompt = '''Sos un parser financiero para una app argentina de finanzas personales.
@@ -99,6 +122,7 @@ Analizá el input del usuario y detectá el escenario financiero. Devolvé un JS
 CUENTAS DISPONIBLES: ${jsonEncode(accountsJson)}
 PERSONAS REGISTRADAS: ${jsonEncode(peopleJson)}
 OBJETIVOS ACTIVOS: ${jsonEncode(goalsJson)}
+PRESUPUESTOS ACTIVOS: ${jsonEncode(budgetsJson)}
 LISTA DE DESEOS PENDIENTE: ${jsonEncode(wishlistJson)}
 
 ESCENARIOS POSIBLES:
@@ -112,6 +136,8 @@ ESCENARIOS POSIBLES:
 - "goal_contribution": guardé/ahorré plata para un objetivo específico.
 - "wishlist_purchase": compré algo que estaba en la lista de deseos.
 - "internal_transfer": transferí plata entre dos cuentas propias del usuario.
+- "create_goal": crear un nuevo objetivo de ahorro (ej: "crear objetivo viaje a Mendoza 500k").
+- "create_budget": crear un nuevo presupuesto (ej: "crear presupuesto comida 100k").
 - "unclear": no se puede determinar con certeza.
 
 CATEGORÍAS VÁLIDAS (usar exactamente estos IDs):
@@ -133,6 +159,7 @@ Respondé ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):
   "cardId": "<id de tarjeta para card_payment o null>",
   "goalId": "<id de objetivo o null>",
   "wishlistItemId": "<id de item de wishlist o null>",
+  "budgetCategoryId": "<categoryId de presupuesto para create_budget o null>",
   "isSplit": <true/false>,
   "splitOwnAmount": <mi parte en shared_expense o null>,
   "splitOtherAmount": <parte ajena en shared_expense o null>,
@@ -150,6 +177,11 @@ REGLAS IMPORTANTES:
 - Para "internal_transfer": accountId es origen, targetAccountId es destino
 - Si el gasto fue "con visa/mastercard" → es expense con accountId = esa tarjeta
 - Si dice "lo dividí con [nombre]" → shared_expense con split 50/50 si no especifica
+- Para "create_goal": title es el nombre del objetivo, amount es la meta
+- Para "create_budget": title es el nombre de la categoría, amount es el límite, budgetCategoryId es la categoría si matchea una existente
+- Si dice "crear/nuevo objetivo" → create_goal
+- Si dice "crear/nuevo presupuesto" → create_budget
+- Si dice "ahorré X para [nombre de objetivo]" → goal_contribution con goalId del objetivo que matchea
 - Inferí la cuenta más lógica según el contexto aunque no se mencione explícitamente''';
 
     final response = await http.post(
@@ -188,6 +220,7 @@ REGLAS IMPORTANTES:
     required List<dom_acc.Account> accounts,
     required List<dom_p.Person> people,
     required List<Goal> goals,
+    required List<dom_b.Budget> budgets,
     required List<WishlistItem> wishlist,
   }) {
     final lower = input.toLowerCase();
@@ -210,6 +243,77 @@ REGLAS IMPORTANTES:
       final m = amtRegexN.firstMatch(input)!;
       final raw = m.group(1)!.replaceAll('.', '').replaceAll(',', '');
       amount = double.tryParse(raw);
+    }
+
+    // ── Crear objetivo ──
+    final createGoalRegex = RegExp(
+      r'(?:cre(?:ar|á)|nuevo|nueva|agreg(?:ar|á))\s+(?:un\s+)?objetivo\s+(?:de\s+)?(?:ahorro\s+)?(?:para\s+)?(.+?)(?:\s+(?:de|por)\s+(\d[\d.,]*\s*(?:k|mil|millones?|M)?))?$',
+      caseSensitive: false,
+    );
+    if (lower.contains('objetivo') &&
+        (lower.contains('crear') || lower.contains('creá') ||
+         lower.contains('nuevo') || lower.contains('nueva') ||
+         lower.contains('agregar') || lower.contains('agregá'))) {
+      final match = createGoalRegex.firstMatch(input);
+      String goalName = 'Nuevo objetivo';
+      if (match != null) {
+        goalName = match.group(1)?.trim() ?? goalName;
+        // Capitalize first letter
+        if (goalName.isNotEmpty) {
+          goalName = goalName[0].toUpperCase() + goalName.substring(1);
+        }
+      } else {
+        // Try to extract name after "objetivo"
+        final afterObj = RegExp(r'objetivo\s+(?:de\s+)?(?:ahorro\s+)?(?:para\s+)?(.+)', caseSensitive: false);
+        final m2 = afterObj.firstMatch(input);
+        if (m2 != null) {
+          goalName = m2.group(1)!.trim();
+          // Remove trailing amount
+          goalName = goalName.replaceAll(RegExp(r'\s+(?:de|por)\s+\d[\d.,]*\s*(?:k|mil|millones?|M)?$', caseSensitive: false), '').trim();
+          if (goalName.isNotEmpty) {
+            goalName = goalName[0].toUpperCase() + goalName.substring(1);
+          }
+        }
+      }
+
+      return NLTransaction(
+        scenario: NLScenario.createGoal,
+        amount: amount,
+        title: goalName,
+        rawInput: input,
+      );
+    }
+
+    // ── Crear presupuesto ──
+    if (lower.contains('presupuesto') &&
+        (lower.contains('crear') || lower.contains('creá') ||
+         lower.contains('nuevo') || lower.contains('nueva') ||
+         lower.contains('agregar') || lower.contains('agregá'))) {
+      String budgetName = 'Nuevo presupuesto';
+      String? matchedCategoryId;
+
+      // Try to extract name after "presupuesto"
+      final afterBudget = RegExp(r'presupuesto\s+(?:de\s+)?(?:para\s+)?(.+)', caseSensitive: false);
+      final m = afterBudget.firstMatch(input);
+      if (m != null) {
+        budgetName = m.group(1)!.trim();
+        // Remove trailing amount
+        budgetName = budgetName.replaceAll(RegExp(r'\s+(?:de|por)\s+\d[\d.,]*\s*(?:k|mil|millones?|M)?$', caseSensitive: false), '').trim();
+        if (budgetName.isNotEmpty) {
+          budgetName = budgetName[0].toUpperCase() + budgetName.substring(1);
+        }
+      }
+
+      // Match to a predefined category
+      matchedCategoryId = _matchBudgetCategory(budgetName.toLowerCase());
+
+      return NLTransaction(
+        scenario: NLScenario.createBudget,
+        amount: amount,
+        title: budgetName,
+        budgetCategoryId: matchedCategoryId,
+        rawInput: input,
+      );
     }
 
     // Detectar persona
@@ -280,7 +384,6 @@ REGLAS IMPORTANTES:
         !lower.contains(' a juan') && person == null) {
       scenario = NLScenario.internalTransfer;
       title = 'Transferencia entre cuentas';
-      // Intentar detectar cuenta destino
       for (final a in accounts) {
         if (lower.contains(a.name.toLowerCase()) && a.id != account?.id) {
           targetAccountId = a.id;
@@ -316,28 +419,40 @@ REGLAS IMPORTANTES:
       account = sourceForCard;
     }
     // Ingreso
-    else if (lower.contains('sueldo') || lower.contains('cobré') || lower.contains('cobré') ||
+    else if (lower.contains('sueldo') || lower.contains('cobré') ||
              lower.contains('depositaron') || lower.contains('me pagaron') || lower.contains('gané') ||
-             lower.contains('facturé') || lower.contains('vendí')) {
+             lower.contains('facturé') || lower.contains('vendí') || lower.contains('ingreso')) {
       scenario = NLScenario.income;
       categoryId = lower.contains('sueldo') ? 'salary' : 'other_income';
       title = lower.contains('sueldo') ? 'Cobro de sueldo' : 'Ingreso';
-      // Si dice "en efectivo", usar cuenta cash
       if (lower.contains('efectivo') || lower.contains('cash')) {
         account = cashAccount ?? defaultAccount;
       }
     }
-    // Ahorro / objetivo
-    else if (lower.contains('guardé') || lower.contains('ahorré') || lower.contains('ahorro')) {
+    // Ahorro / objetivo — mejorado con matching inteligente
+    else if (lower.contains('guardé') || lower.contains('ahorré') || lower.contains('ahorro para') || lower.contains('ahorrar')) {
       scenario = NLScenario.goalContribution;
       categoryId = 'other_expense';
       title = 'Ahorro';
-      for (final g in goals) {
-        if (lower.contains(g.name.toLowerCase().split(' ').first.toLowerCase())) {
-          title = 'Ahorro: ${g.name}';
-          break;
-        }
+      String? matchedGoalId;
+
+      // Buscar por nombre completo primero, luego parcial
+      matchedGoalId = _matchGoal(lower, goals);
+
+      if (matchedGoalId != null) {
+        final matched = goals.firstWhere((g) => g.id == matchedGoalId);
+        title = 'Ahorro: ${matched.name}';
       }
+
+      return NLTransaction(
+        scenario: scenario,
+        amount: amount,
+        title: title,
+        categoryId: categoryId,
+        accountId: account?.id ?? defaultAccount?.id,
+        goalId: matchedGoalId,
+        rawInput: input,
+      );
     }
     // Gasto compartido
     else if (lower.contains('dividí') || lower.contains('dividi') || lower.contains('compartimos') ||
@@ -371,24 +486,110 @@ REGLAS IMPORTANTES:
         }
       }
 
-      // Categoría por palabras clave
-      if (lower.contains('sushi') || lower.contains('comida') || lower.contains('restau') || lower.contains('almor') || lower.contains('cen') || lower.contains('mcdonal') || lower.contains('pizza') || lower.contains('super')) {
-        categoryId = 'food'; title = 'Comida';
-      } else if (lower.contains('nafta') || lower.contains('combustible') || lower.contains('uber') || lower.contains('taxi') || lower.contains('colectivo') || lower.contains('subte') || lower.contains('tren')) {
-        categoryId = 'transport'; title = 'Transporte';
-      } else if (lower.contains('farmacia') || lower.contains('médico') || lower.contains('salud') || lower.contains('doctor') || lower.contains('hospital') || lower.contains('obra social')) {
-        categoryId = 'health'; title = 'Salud';
-      } else if (lower.contains('cine') || lower.contains('netflix') || lower.contains('spotify') || lower.contains('disney') || lower.contains('juego') || lower.contains('teatro')) {
-        categoryId = 'entertainment'; title = 'Entretenimiento';
-      } else if (lower.contains('ropa') || lower.contains('zapatilla') || lower.contains('tienda') || lower.contains('compré') || lower.contains('zara') || lower.contains('h&m')) {
-        categoryId = 'shopping'; title = 'Compras';
-      } else if (lower.contains('alquiler') || lower.contains('expensas') || lower.contains('luz') || lower.contains('gas') || lower.contains('agua') || lower.contains('internet hogar')) {
-        categoryId = 'home'; title = 'Hogar';
-      } else if (lower.contains('gym') || lower.contains('gimnasio') || lower.contains('celu') || lower.contains('internet') || lower.contains('suscripción') || lower.contains('plan')) {
-        categoryId = 'services'; title = 'Servicios';
-      } else if (lower.contains('libro') || lower.contains('curso') || lower.contains('udemy') || lower.contains('colegio') || lower.contains('universidad')) {
-        categoryId = 'education'; title = 'Educación';
+      // ── Primero: matchear contra presupuestos activos del usuario ──
+      final lowerNorm = _stripAccents(lower);
+      for (final b in budgets) {
+        final budgetName = b.categoryName.toLowerCase();
+        final budgetNorm = _stripAccents(budgetName);
+        // Match nombre completo (con y sin acentos)
+        if (lower.contains(budgetName) || lowerNorm.contains(budgetNorm)) {
+          categoryId = b.categoryId;
+          title = b.categoryName;
+          break;
+        }
+        // Match por palabras significativas
+        final words = budgetNorm.split(RegExp(r'\s+'));
+        for (final w in words) {
+          if (w.length >= 3 && lowerNorm.contains(w)) {
+            categoryId = b.categoryId;
+            title = b.categoryName;
+            break;
+          }
+        }
+        if (categoryId != 'other_expense') break;
       }
+
+      // ── Si no matcheó presupuesto, usar keywords hardcodeados ──
+      if (categoryId == 'other_expense') {
+      final foodKeywords = {
+        'sushi': 'Sushi', 'pizza': 'Pizza', 'mcdonal': 'McDonald\'s', 'burger': 'Hamburguesa',
+        'hambur': 'Hamburguesa', 'helado': 'Helado', 'café': 'Café', 'cafe': 'Café',
+        'super': 'Supermercado', 'almor': 'Almuerzo', 'cena': 'Cena', 'desayuno': 'Desayuno',
+        'restau': 'Restaurant', 'comida': 'Comida', 'rappi': 'Delivery', 'delivery': 'Delivery',
+        'pedidos ya': 'Delivery', 'panadería': 'Panadería', 'panaderia': 'Panadería',
+        'verdulería': 'Verdulería', 'carnicería': 'Carnicería', 'kiosko': 'Kiosco',
+        'kiosco': 'Kiosco', 'empanada': 'Empanadas', 'asado': 'Asado', 'birra': 'Cerveza',
+        'cerveza': 'Cerveza', 'vino': 'Vino', 'bar': 'Bar',
+      };
+      final transportKeywords = {
+        'nafta': 'Nafta', 'combustible': 'Combustible', 'uber': 'Uber', 'taxi': 'Taxi',
+        'colectivo': 'Colectivo', 'subte': 'Subte', 'tren': 'Tren', 'estacionamiento': 'Estacionamiento',
+        'peaje': 'Peaje', 'sube': 'Carga SUBE',
+      };
+      final healthKeywords = {
+        'farmacia': 'Farmacia', 'médico': 'Médico', 'medico': 'Médico', 'doctor': 'Doctor',
+        'hospital': 'Hospital', 'obra social': 'Obra Social', 'salud': 'Salud',
+        'dentista': 'Dentista', 'psicólogo': 'Psicólogo', 'psicologo': 'Psicólogo',
+        'psicóloga': 'Psicóloga', 'psicologa': 'Psicóloga',
+        'terapi': 'Terapia', 'kinesió': 'Kinesiología', 'kinesio': 'Kinesiología',
+        'nutrici': 'Nutricionista', 'oftalm': 'Oftalmólogo', 'dermat': 'Dermatólogo',
+      };
+      final entKeywords = {
+        'cine': 'Cine', 'netflix': 'Netflix', 'spotify': 'Spotify', 'disney': 'Disney+',
+        'juego': 'Juegos', 'teatro': 'Teatro', 'recital': 'Recital', 'concierto': 'Concierto',
+        'lolla': 'Lollapalooza', 'play': 'PlayStation', 'steam': 'Steam',
+      };
+      final shopKeywords = {
+        'ropa': 'Ropa', 'zapatilla': 'Zapatillas', 'tienda': 'Tienda', 'zara': 'Zara',
+        'h&m': 'H&M', 'nike': 'Nike', 'compré': 'Compra',
+      };
+      final homeKeywords = {
+        'alquiler': 'Alquiler', 'expensas': 'Expensas', 'luz': 'Luz', 'gas': 'Gas',
+        'agua': 'Agua', 'internet hogar': 'Internet',
+      };
+      final serviceKeywords = {
+        'gym': 'Gimnasio', 'gimnasio': 'Gimnasio', 'celu': 'Celular', 'internet': 'Internet',
+        'suscripción': 'Suscripción', 'suscripcion': 'Suscripción', 'plan': 'Plan',
+      };
+      final eduKeywords = {
+        'libro': 'Libro', 'curso': 'Curso', 'udemy': 'Udemy', 'colegio': 'Colegio',
+        'universidad': 'Universidad',
+      };
+
+      String? matchKeyword(Map<String, String> keywords) {
+        for (final entry in keywords.entries) {
+          if (lower.contains(entry.key)) return entry.value;
+        }
+        return null;
+      }
+
+      final foodMatch = matchKeyword(foodKeywords);
+      final transportMatch = matchKeyword(transportKeywords);
+      final healthMatch = matchKeyword(healthKeywords);
+      final entMatch = matchKeyword(entKeywords);
+      final shopMatch = matchKeyword(shopKeywords);
+      final homeMatch = matchKeyword(homeKeywords);
+      final serviceMatch = matchKeyword(serviceKeywords);
+      final eduMatch = matchKeyword(eduKeywords);
+
+      if (foodMatch != null) {
+        categoryId = 'food'; title = foodMatch;
+      } else if (transportMatch != null) {
+        categoryId = 'transport'; title = transportMatch;
+      } else if (healthMatch != null) {
+        categoryId = 'health'; title = healthMatch;
+      } else if (entMatch != null) {
+        categoryId = 'entertainment'; title = entMatch;
+      } else if (shopMatch != null) {
+        categoryId = 'shopping'; title = shopMatch;
+      } else if (homeMatch != null) {
+        categoryId = 'home'; title = homeMatch;
+      } else if (serviceMatch != null) {
+        categoryId = 'services'; title = serviceMatch;
+      } else if (eduMatch != null) {
+        categoryId = 'education'; title = eduMatch;
+      }
+      } // fin del if (categoryId == 'other_expense')
 
       // Si se usó tarjeta, la cuenta es la tarjeta
       if (card != null) {
@@ -414,6 +615,70 @@ REGLAS IMPORTANTES:
   }
 
   // ─────────────────────────────────────────────
+  // Matching inteligente de objetivo
+  // ─────────────────────────────────────────────
+  String? _matchGoal(String lower, List<Goal> goals) {
+    if (goals.isEmpty) return null;
+
+    final lowerNorm = _stripAccents(lower);
+
+    // 1. Match exacto por nombre completo (con y sin acentos)
+    for (final g in goals) {
+      final name = g.name.toLowerCase();
+      if (lower.contains(name) || lowerNorm.contains(_stripAccents(name))) {
+        return g.id;
+      }
+    }
+
+    // 2. Match por cada palabra significativa del nombre (>= 3 chars)
+    int bestScore = 0;
+    String? bestId;
+    for (final g in goals) {
+      final words = _stripAccents(g.name.toLowerCase()).split(RegExp(r'\s+'));
+      int score = 0;
+      for (final w in words) {
+        if (w.length >= 3 && lowerNorm.contains(w)) score++;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestId = g.id;
+      }
+    }
+    if (bestScore > 0) return bestId;
+
+    // 3. Match parcial — primera palabra significativa
+    for (final g in goals) {
+      final firstName = _stripAccents(g.name.toLowerCase().split(' ').first);
+      if (firstName.length >= 3 && lowerNorm.contains(firstName)) return g.id;
+    }
+
+    return null;
+  }
+
+  // ─────────────────────────────────────────────
+  // Matching de categoría de presupuesto
+  // ─────────────────────────────────────────────
+  static String? _matchBudgetCategory(String name) {
+    const categoryMap = <String, List<String>>{
+      'food': ['comida', 'aliment', 'super', 'mercado', 'almuerz', 'cena', 'restaurant'],
+      'transport': ['transporte', 'nafta', 'combustible', 'viaje', 'auto', 'uber'],
+      'health': ['salud', 'médic', 'medic', 'farmacia', 'psicólog', 'psicologo', 'doctor', 'terapi'],
+      'entertainment': ['entretenimiento', 'diversi', 'ocio', 'netflix', 'spotify', 'cine'],
+      'shopping': ['compras', 'ropa', 'shopping', 'tienda'],
+      'home': ['hogar', 'casa', 'alquiler', 'expensas', 'luz', 'gas', 'agua', 'vivienda'],
+      'education': ['educación', 'educacion', 'estudio', 'curso', 'universidad', 'colegio'],
+      'services': ['servicios', 'internet', 'celular', 'gym', 'gimnasio', 'suscripci'],
+    };
+
+    for (final entry in categoryMap.entries) {
+      for (final keyword in entry.value) {
+        if (name.contains(keyword)) return entry.key;
+      }
+    }
+    return null;
+  }
+
+  // ─────────────────────────────────────────────
   // Map API JSON → NLTransaction
   // ─────────────────────────────────────────────
   NLTransaction _mapJsonToNL(Map<String, dynamic> json, String rawInput) {
@@ -429,6 +694,8 @@ REGLAS IMPORTANTES:
       case 'goal_contribution': scenario = NLScenario.goalContribution; break;
       case 'wishlist_purchase': scenario = NLScenario.wishlistPurchase; break;
       case 'internal_transfer': scenario = NLScenario.internalTransfer; break;
+      case 'create_goal':   scenario = NLScenario.createGoal; break;
+      case 'create_budget': scenario = NLScenario.createBudget; break;
       default: scenario = NLScenario.unclear;
     }
 
@@ -444,6 +711,7 @@ REGLAS IMPORTANTES:
       cardId: json['cardId'] as String?,
       goalId: json['goalId'] as String?,
       wishlistItemId: json['wishlistItemId'] as String?,
+      budgetCategoryId: json['budgetCategoryId'] as String?,
       isSplit: json['isSplit'] as bool? ?? false,
       splitOwnAmount: (json['splitOwnAmount'] as num?)?.toDouble(),
       splitOtherAmount: (json['splitOtherAmount'] as num?)?.toDouble(),

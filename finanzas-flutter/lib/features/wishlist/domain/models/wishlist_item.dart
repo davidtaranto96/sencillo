@@ -11,6 +11,12 @@ class WishlistItem extends Equatable {
   final DateTime createdAt;
   final bool isPurchased;
   final DateTime? purchasedAt;
+  final String? purchaseMethod; // 'account', 'cash', 'regalo'
+  final String? purchaseAccountId;
+  final String? linkedBudgetId;
+  final int? reminderDays; // per-item override; null = use global
+  final DateTime? reminderSnoozedUntil;
+  final bool reminderDismissed;
 
   const WishlistItem({
     required this.id,
@@ -23,6 +29,12 @@ class WishlistItem extends Equatable {
     required this.createdAt,
     this.isPurchased = false,
     this.purchasedAt,
+    this.purchaseMethod,
+    this.purchaseAccountId,
+    this.linkedBudgetId,
+    this.reminderDays,
+    this.reminderSnoozedUntil,
+    this.reminderDismissed = false,
   });
 
   WishlistItem copyWith({
@@ -36,6 +48,12 @@ class WishlistItem extends Equatable {
     DateTime? createdAt,
     bool? isPurchased,
     DateTime? purchasedAt,
+    String? purchaseMethod,
+    String? purchaseAccountId,
+    String? linkedBudgetId,
+    int? reminderDays,
+    DateTime? reminderSnoozedUntil,
+    bool? reminderDismissed,
   }) {
     return WishlistItem(
       id: id ?? this.id,
@@ -48,9 +66,20 @@ class WishlistItem extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       isPurchased: isPurchased ?? this.isPurchased,
       purchasedAt: purchasedAt ?? this.purchasedAt,
+      purchaseMethod: purchaseMethod ?? this.purchaseMethod,
+      purchaseAccountId: purchaseAccountId ?? this.purchaseAccountId,
+      linkedBudgetId: linkedBudgetId ?? this.linkedBudgetId,
+      reminderDays: reminderDays ?? this.reminderDays,
+      reminderSnoozedUntil: reminderSnoozedUntil ?? this.reminderSnoozedUntil,
+      reminderDismissed: reminderDismissed ?? this.reminderDismissed,
     );
   }
 
   @override
-  List<Object?> get props => [id, title, estimatedCost, note, url, installments, hasPromo, createdAt, isPurchased];
+  List<Object?> get props => [
+        id, title, estimatedCost, note, url, installments, hasPromo,
+        createdAt, isPurchased, purchasedAt, purchaseMethod,
+        purchaseAccountId, linkedBudgetId, reminderDays,
+        reminderSnoozedUntil, reminderDismissed,
+      ];
 }

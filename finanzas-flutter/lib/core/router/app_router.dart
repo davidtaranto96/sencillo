@@ -15,6 +15,7 @@ import '../../features/wishlist/presentation/pages/wishlist_page.dart';
 import '../../features/accounts/presentation/pages/accounts_page.dart';
 import '../../features/accounts/presentation/pages/account_detail_page.dart';
 import '../../features/transactions/presentation/pages/transaction_detail_page.dart';
+import '../../features/goals/presentation/pages/savings_page.dart';
 import '../shell/app_shell.dart';
 
 /// Key del Navigator interno del ShellRoute — usado por AppShell para cerrar modales
@@ -71,11 +72,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/monthly_overview',
-        builder: (context, state) => const MonthlyOverviewPage(),
+        builder: (context, state) => const MonthlyOverviewPage(standalone: true),
       ),
       GoRoute(
         path: '/people',
-        builder: (context, state) => const PeoplePage(),
+        builder: (context, state) => const PeoplePage(standalone: true),
       ),
       GoRoute(
         path: '/reports',
@@ -98,6 +99,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/savings',
+        builder: (context, state) => const SavingsPage(),
       ),
       GoRoute(
         path: '/transactions/:txId',

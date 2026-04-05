@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +7,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../../../core/logic/account_service.dart';
 import '../../../../core/utils/format_utils.dart';
+import '../../../../core/providers/account_order_provider.dart';
+import '../../../../core/widgets/app_fab.dart';
+import '../../../transactions/domain/models/transaction.dart' as dom_tx;
 import '../../domain/models/account.dart' as dom;
 
 const _accountIcons = <String, IconData>{
@@ -51,20 +55,30 @@ Color getAccountColor(dom.Account acc) {
 class AccountsPage extends ConsumerWidget {
   const AccountsPage({super.key});
 
-  /// Sort: cash/default first, then non-credit by balance desc, then credit cards by debt desc
-  List<dom.Account> _sortAccounts(List<dom.Account> accounts) {
+  /// Sort accounts by custom order (saved in SharedPreferences), fallback to default sort
+  List<dom.Account> _sortAccounts(List<dom.Account> accounts, List<String> customOrder) {
+    if (customOrder.isNotEmpty) {
+      final orderMap = <String, int>{};
+      for (var i = 0; i < customOrder.length; i++) {
+        orderMap[customOrder[i]] = i;
+      }
+      final sorted = List<dom.Account>.from(accounts);
+      sorted.sort((a, b) {
+        final ai = orderMap[a.id] ?? 999;
+        final bi = orderMap[b.id] ?? 999;
+        if (ai != bi) return ai.compareTo(bi);
+        return a.name.compareTo(b.name);
+      });
+      return sorted;
+    }
+    // Default sort
     final sorted = List<dom.Account>.from(accounts);
     sorted.sort((a, b) {
-      // Default cash account always first
       if (a.isDefault && !b.isDefault) return -1;
       if (!a.isDefault && b.isDefault) return 1;
-      // Non-credit cards before credit cards
       if (!a.isCreditCard && b.isCreditCard) return -1;
       if (a.isCreditCard && !b.isCreditCard) return 1;
-      // Within same type, sort by balance descending
-      if (a.isCreditCard && b.isCreditCard) {
-        return b.totalDebt.compareTo(a.totalDebt);
-      }
+      if (a.isCreditCard && b.isCreditCard) return b.totalDebt.compareTo(a.totalDebt);
       return b.balance.compareTo(a.balance);
     });
     return sorted;
@@ -73,6 +87,8 @@ class AccountsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final customOrder = ref.watch(accountOrderProvider);
+    final txsAsync = ref.watch(transactionsStreamProvider);
 
     return accountsAsync.when(
       loading: () =>
@@ -80,7 +96,20 @@ class AccountsPage extends ConsumerWidget {
       error: (err, stack) =>
           Scaffold(body: Center(child: Text('Error: $err'))),
       data: (accounts) {
-        final sorted = _sortAccounts(accounts);
+        final sorted = _sortAccounts(accounts, customOrder);
+
+        // Current month spending per account (expenses only)
+        final now = DateTime.now();
+        final txs = txsAsync.valueOrNull ?? [];
+        final Map<String, double> monthSpendByAccount = {};
+        for (final t in txs) {
+          if (t.type == dom_tx.TransactionType.expense &&
+              t.date.month == now.month &&
+              t.date.year == now.year) {
+            monthSpendByAccount[t.accountId] =
+                (monthSpendByAccount[t.accountId] ?? 0) + t.amount;
+          }
+        }
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.transparent,
@@ -90,41 +119,171 @@ class AccountsPage extends ConsumerWidget {
               style:
                   GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 20),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.swap_vert_rounded, size: 22),
+                tooltip: 'Reordenar',
+                onPressed: () => _showReorderSheet(context, ref, sorted),
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
-          body: ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: sorted.length,
-            itemBuilder: (context, index) {
-              final acc = sorted[index];
-              return _AccountCard(
-                account: acc,
-                onTap: () => context.push('/accounts/${acc.id}'),
-                onLongPress: () =>
-                    _showAccountOptions(context, ref, acc),
-                onPayStatement: acc.isCreditCard &&
-                        acc.pendingStatementAmount > 0
-                    ? () =>
-                        _showPayStatementDialog(context, ref, acc)
-                    : null,
-              );
-            },
-          ),
-          floatingActionButton: Padding(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).padding.bottom + 16),
-            child: FloatingActionButton(
-              heroTag: null,
-              onPressed: () => _showAddAccountDialog(context, ref),
-              backgroundColor: AppTheme.colorTransfer,
-              foregroundColor: Colors.white,
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18)),
-              child: const Icon(Icons.add_rounded, size: 28),
-            ),
+          body: Stack(
+            children: [
+              ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                itemCount: sorted.length,
+                itemBuilder: (context, index) {
+                  final acc = sorted[index];
+                  return _AccountCard(
+                    account: acc,
+                    monthSpend: monthSpendByAccount[acc.id] ?? 0.0,
+                    onTap: () => context.push('/accounts/${acc.id}'),
+                    onLongPress: () =>
+                        _showAccountOptions(context, ref, acc),
+                    onPayStatement: acc.isCreditCard &&
+                            acc.pendingStatementAmount > 0
+                        ? () =>
+                            _showPayStatementDialog(context, ref, acc)
+                        : null,
+                  );
+                },
+              ),
+              Positioned(
+                right: 16,
+                bottom: MediaQuery.of(context).padding.bottom + 16,
+                child: AppFab(
+                  icon: Icons.add_rounded,
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _showAddAccountDialog(context, ref);
+                  },
+                ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  void _showReorderSheet(BuildContext context, WidgetRef ref, List<dom.Account> accounts) {
+    final reorderable = List<dom.Account>.from(accounts);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            padding: const EdgeInsets.fromLTRB(0, 24, 0, 24),
+            decoration: const BoxDecoration(
+              color: Color(0xFF18181F),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Text('Ordenar cuentas', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () {
+                          ref.read(accountOrderProvider.notifier).setOrder(
+                            reorderable.map((a) => a.id).toList(),
+                          );
+                          Navigator.pop(ctx);
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.colorTransfer,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: Size.zero,
+                        ),
+                        child: const Text('Guardar', style: TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text('Mantené presionado y arrastrá para reordenar',
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.white38)),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: reorderable.length,
+                    onReorder: (oldIndex, newIndex) {
+                      setLocal(() {
+                        if (newIndex > oldIndex) newIndex--;
+                        final item = reorderable.removeAt(oldIndex);
+                        reorderable.insert(newIndex, item);
+                      });
+                    },
+                    proxyDecorator: (child, index, animation) {
+                      return Material(
+                        color: Colors.transparent,
+                        elevation: 4,
+                        shadowColor: AppTheme.colorTransfer.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(14),
+                        child: child,
+                      );
+                    },
+                    itemBuilder: (ctx, index) {
+                      final acc = reorderable[index];
+                      final color = getAccountColor(acc);
+                      return Container(
+                        key: ValueKey(acc.id),
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1E2C),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: color.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.drag_handle_rounded, size: 20, color: Colors.white38),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                acc.isCreditCard ? Icons.credit_card_rounded : Icons.account_balance_wallet_rounded,
+                                size: 16, color: color,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(acc.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white)),
+                            ),
+                            Text(formatAmount(acc.balance),
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -467,16 +626,20 @@ class AccountsPage extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setState) => SingleChildScrollView(
-            child: Container(
-              padding: EdgeInsets.fromLTRB(
-                  24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 100),
-              decoration: const BoxDecoration(
-                color: Color(0xFF18181F),
-                borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(32),
-                    topRight: Radius.circular(32)),
-              ),
+          builder: (context, setState) => ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.92,
+            ),
+            child: SingleChildScrollView(
+              child: Container(
+                padding: EdgeInsets.fromLTRB(
+                    24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF18181F),
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(32),
+                      topRight: Radius.circular(32)),
+                ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -889,7 +1052,8 @@ class AccountsPage extends ConsumerWidget {
               ),
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
@@ -1038,12 +1202,14 @@ class AccountsPage extends ConsumerWidget {
 // ──────────────────────────────────────────────────────────────
 class _AccountCard extends StatelessWidget {
   final dom.Account account;
+  final double monthSpend;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback? onPayStatement;
 
   const _AccountCard({
     required this.account,
+    required this.monthSpend,
     required this.onTap,
     required this.onLongPress,
     this.onPayStatement,
@@ -1136,13 +1302,18 @@ class _AccountCard extends StatelessWidget {
                               color: AppTheme.colorExpense,
                               fontSize: 10),
                         ),
-                      if (acc.alias != null &&
-                          acc.alias!.isNotEmpty)
+                      if (acc.isCreditCard && monthSpend > 0)
                         Text(
-                          acc.alias!,
+                          'Este mes: ${formatAmount(monthSpend)}',
                           style: TextStyle(
-                              color: Colors.white
-                                  .withValues(alpha: 0.35),
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 10),
+                        ),
+                      if (acc.isCreditCard && acc.creditLimit != null && acc.creditLimit! > 0)
+                        Text(
+                          'Disponible: ${formatAmount(acc.creditLimit! - monthSpend)}',
+                          style: TextStyle(
+                              color: accColor.withValues(alpha: 0.7),
                               fontSize: 10),
                         ),
                       const SizedBox(height: 4),
@@ -1157,6 +1328,41 @@ class _AccountCard extends StatelessWidget {
                             fontSize: 11,
                             fontWeight: FontWeight.w600),
                       ),
+                      // Alias / CVU copy row
+                      if ((acc.alias != null && acc.alias!.isNotEmpty) ||
+                          (acc.cvu != null && acc.cvu!.isNotEmpty)) ...[
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () {
+                            final text = acc.alias ?? acc.cvu ?? '';
+                            Clipboard.setData(ClipboardData(text: text));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Copiado al portapapeles'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  acc.alias ?? acc.cvu ?? '',
+                                  style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.3),
+                                      fontSize: 10),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.copy_rounded,
+                                  size: 10,
+                                  color: Colors.white.withValues(alpha: 0.3)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

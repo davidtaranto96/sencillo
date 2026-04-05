@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # Estado
   flutter_riverpod: ^2.6.1
@@ -45,6 +47,7 @@ dependencies:
   speech_to_text: ^7.0.0
   http: ^1.2.2
   shared_preferences: ^2.3.2
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

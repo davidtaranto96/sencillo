@@ -9,6 +9,7 @@ class PersonsTable extends Table {
   RealColumn get totalBalance => real().withDefault(const Constant(0.0))();
   TextColumn get cbu => text().nullable()();
   TextColumn get notes => text().nullable()();
+  TextColumn get linkedUserId => text().nullable()(); // Firebase UID del amigo vinculado
 
   @override
   Set<Column> get primaryKey => {id};

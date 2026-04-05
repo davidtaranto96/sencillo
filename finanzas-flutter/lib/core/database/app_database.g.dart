@@ -2575,9 +2575,15 @@ class $PersonsTableTable extends PersonsTable
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
       'notes', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _linkedUserIdMeta =
+      const VerificationMeta('linkedUserId');
+  @override
+  late final GeneratedColumn<String> linkedUserId = GeneratedColumn<String>(
+      'linked_user_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, alias, colorValue, totalBalance, cbu, notes];
+      [id, name, alias, colorValue, totalBalance, cbu, notes, linkedUserId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2625,6 +2631,12 @@ class $PersonsTableTable extends PersonsTable
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
+    if (data.containsKey('linked_user_id')) {
+      context.handle(
+          _linkedUserIdMeta,
+          linkedUserId.isAcceptableOrUnknown(
+              data['linked_user_id']!, _linkedUserIdMeta));
+    }
     return context;
   }
 
@@ -2648,6 +2660,8 @@ class $PersonsTableTable extends PersonsTable
           .read(DriftSqlType.string, data['${effectivePrefix}cbu']),
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      linkedUserId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}linked_user_id']),
     );
   }
 
@@ -2665,6 +2679,7 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
   final double totalBalance;
   final String? cbu;
   final String? notes;
+  final String? linkedUserId;
   const PersonEntity(
       {required this.id,
       required this.name,
@@ -2672,7 +2687,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       required this.colorValue,
       required this.totalBalance,
       this.cbu,
-      this.notes});
+      this.notes,
+      this.linkedUserId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2689,6 +2705,9 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    if (!nullToAbsent || linkedUserId != null) {
+      map['linked_user_id'] = Variable<String>(linkedUserId);
+    }
     return map;
   }
 
@@ -2703,6 +2722,9 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       cbu: cbu == null && nullToAbsent ? const Value.absent() : Value(cbu),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      linkedUserId: linkedUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedUserId),
     );
   }
 
@@ -2717,6 +2739,7 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       totalBalance: serializer.fromJson<double>(json['totalBalance']),
       cbu: serializer.fromJson<String?>(json['cbu']),
       notes: serializer.fromJson<String?>(json['notes']),
+      linkedUserId: serializer.fromJson<String?>(json['linkedUserId']),
     );
   }
   @override
@@ -2730,6 +2753,7 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
       'totalBalance': serializer.toJson<double>(totalBalance),
       'cbu': serializer.toJson<String?>(cbu),
       'notes': serializer.toJson<String?>(notes),
+      'linkedUserId': serializer.toJson<String?>(linkedUserId),
     };
   }
 
@@ -2740,7 +2764,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           int? colorValue,
           double? totalBalance,
           Value<String?> cbu = const Value.absent(),
-          Value<String?> notes = const Value.absent()}) =>
+          Value<String?> notes = const Value.absent(),
+          Value<String?> linkedUserId = const Value.absent()}) =>
       PersonEntity(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -2749,6 +2774,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
         totalBalance: totalBalance ?? this.totalBalance,
         cbu: cbu.present ? cbu.value : this.cbu,
         notes: notes.present ? notes.value : this.notes,
+        linkedUserId:
+            linkedUserId.present ? linkedUserId.value : this.linkedUserId,
       );
   PersonEntity copyWithCompanion(PersonsTableCompanion data) {
     return PersonEntity(
@@ -2762,6 +2789,9 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           : this.totalBalance,
       cbu: data.cbu.present ? data.cbu.value : this.cbu,
       notes: data.notes.present ? data.notes.value : this.notes,
+      linkedUserId: data.linkedUserId.present
+          ? data.linkedUserId.value
+          : this.linkedUserId,
     );
   }
 
@@ -2774,14 +2804,15 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           ..write('colorValue: $colorValue, ')
           ..write('totalBalance: $totalBalance, ')
           ..write('cbu: $cbu, ')
-          ..write('notes: $notes')
+          ..write('notes: $notes, ')
+          ..write('linkedUserId: $linkedUserId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, alias, colorValue, totalBalance, cbu, notes);
+  int get hashCode => Object.hash(
+      id, name, alias, colorValue, totalBalance, cbu, notes, linkedUserId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2792,7 +2823,8 @@ class PersonEntity extends DataClass implements Insertable<PersonEntity> {
           other.colorValue == this.colorValue &&
           other.totalBalance == this.totalBalance &&
           other.cbu == this.cbu &&
-          other.notes == this.notes);
+          other.notes == this.notes &&
+          other.linkedUserId == this.linkedUserId);
 }
 
 class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
@@ -2803,6 +2835,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
   final Value<double> totalBalance;
   final Value<String?> cbu;
   final Value<String?> notes;
+  final Value<String?> linkedUserId;
   final Value<int> rowid;
   const PersonsTableCompanion({
     this.id = const Value.absent(),
@@ -2812,6 +2845,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     this.totalBalance = const Value.absent(),
     this.cbu = const Value.absent(),
     this.notes = const Value.absent(),
+    this.linkedUserId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PersonsTableCompanion.insert({
@@ -2822,6 +2856,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     this.totalBalance = const Value.absent(),
     this.cbu = const Value.absent(),
     this.notes = const Value.absent(),
+    this.linkedUserId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name),
@@ -2834,6 +2869,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     Expression<double>? totalBalance,
     Expression<String>? cbu,
     Expression<String>? notes,
+    Expression<String>? linkedUserId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2844,6 +2880,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
       if (totalBalance != null) 'total_balance': totalBalance,
       if (cbu != null) 'cbu': cbu,
       if (notes != null) 'notes': notes,
+      if (linkedUserId != null) 'linked_user_id': linkedUserId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2856,6 +2893,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
       Value<double>? totalBalance,
       Value<String?>? cbu,
       Value<String?>? notes,
+      Value<String?>? linkedUserId,
       Value<int>? rowid}) {
     return PersonsTableCompanion(
       id: id ?? this.id,
@@ -2865,6 +2903,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
       totalBalance: totalBalance ?? this.totalBalance,
       cbu: cbu ?? this.cbu,
       notes: notes ?? this.notes,
+      linkedUserId: linkedUserId ?? this.linkedUserId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2893,6 +2932,9 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (linkedUserId.present) {
+      map['linked_user_id'] = Variable<String>(linkedUserId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2909,6 +2951,7 @@ class PersonsTableCompanion extends UpdateCompanion<PersonEntity> {
           ..write('totalBalance: $totalBalance, ')
           ..write('cbu: $cbu, ')
           ..write('notes: $notes, ')
+          ..write('linkedUserId: $linkedUserId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5835,6 +5878,7 @@ typedef $$PersonsTableTableCreateCompanionBuilder = PersonsTableCompanion
   Value<double> totalBalance,
   Value<String?> cbu,
   Value<String?> notes,
+  Value<String?> linkedUserId,
   Value<int> rowid,
 });
 typedef $$PersonsTableTableUpdateCompanionBuilder = PersonsTableCompanion
@@ -5846,6 +5890,7 @@ typedef $$PersonsTableTableUpdateCompanionBuilder = PersonsTableCompanion
   Value<double> totalBalance,
   Value<String?> cbu,
   Value<String?> notes,
+  Value<String?> linkedUserId,
   Value<int> rowid,
 });
 
@@ -5878,6 +5923,9 @@ class $$PersonsTableTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get linkedUserId => $composableBuilder(
+      column: $table.linkedUserId, builder: (column) => ColumnFilters(column));
 }
 
 class $$PersonsTableTableOrderingComposer
@@ -5910,6 +5958,10 @@ class $$PersonsTableTableOrderingComposer
 
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get linkedUserId => $composableBuilder(
+      column: $table.linkedUserId,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$PersonsTableTableAnnotationComposer
@@ -5941,6 +5993,9 @@ class $$PersonsTableTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedUserId => $composableBuilder(
+      column: $table.linkedUserId, builder: (column) => column);
 }
 
 class $$PersonsTableTableTableManager extends RootTableManager<
@@ -5976,6 +6031,7 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             Value<double> totalBalance = const Value.absent(),
             Value<String?> cbu = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<String?> linkedUserId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PersonsTableCompanion(
@@ -5986,6 +6042,7 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             totalBalance: totalBalance,
             cbu: cbu,
             notes: notes,
+            linkedUserId: linkedUserId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5996,6 +6053,7 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             Value<double> totalBalance = const Value.absent(),
             Value<String?> cbu = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<String?> linkedUserId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PersonsTableCompanion.insert(
@@ -6006,6 +6064,7 @@ class $$PersonsTableTableTableManager extends RootTableManager<
             totalBalance: totalBalance,
             cbu: cbu,
             notes: notes,
+            linkedUserId: linkedUserId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

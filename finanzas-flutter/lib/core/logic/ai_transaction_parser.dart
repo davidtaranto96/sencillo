@@ -138,6 +138,13 @@ ESCENARIOS POSIBLES:
 - "internal_transfer": transferí plata entre dos cuentas propias del usuario.
 - "create_goal": crear un nuevo objetivo de ahorro (ej: "crear objetivo viaje a Mendoza 500k").
 - "create_budget": crear un nuevo presupuesto (ej: "crear presupuesto comida 100k").
+- "navigate_to": el usuario quiere ir a una sección de la app (ej: "ir a reportes", "abrir personas", "mostrar cuentas"). Devolver navigationTarget con uno de: home, transactions, budget, goals, people, reports, accounts, monthly_overview, wishlist, savings.
+- "create_person": el usuario quiere agregar un contacto nuevo (ej: "agregar a Martín", "nuevo amigo Pedro"). Devolver personName con el nombre detectado.
+- "query_balance": el usuario pregunta por su saldo (ej: "cuánto tengo?", "cuánto hay en mi cuenta?"). No crear transacción.
+- "query_budget": el usuario pregunta por el estado de un presupuesto (ej: "cómo va mi presupuesto de comida?"). Devolver categoryId o title con el presupuesto relevante.
+- "query_debt": el usuario pregunta por una deuda con alguien (ej: "cuánto me debe Juan?", "qué le debo a María?"). Devolver personId o personName.
+- "duplicate_last_tx": el usuario quiere repetir su último movimiento (ej: "lo mismo de ayer", "repetir el último gasto", "igual que ayer"). No necesita monto.
+- "settle_debt": el usuario quiere saldar la deuda completa con alguien (ej: "saldar todo con Juan", "liquidar la deuda con María"). Devolver personId o personName.
 - "unclear": no se puede determinar con certeza.
 
 CATEGORÍAS VÁLIDAS (usar exactamente estos IDs):
@@ -160,6 +167,7 @@ Respondé ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):
   "goalId": "<id de objetivo o null>",
   "wishlistItemId": "<id de item de wishlist o null>",
   "budgetCategoryId": "<categoryId de presupuesto para create_budget o null>",
+  "navigationTarget": "<tab ID para navigate_to o null>",
   "isSplit": <true/false>,
   "splitOwnAmount": <mi parte en shared_expense o null>,
   "splitOtherAmount": <parte ajena en shared_expense o null>,
@@ -182,6 +190,8 @@ REGLAS IMPORTANTES:
 - Si dice "crear/nuevo objetivo" → create_goal
 - Si dice "crear/nuevo presupuesto" → create_budget
 - Si dice "ahorré X para [nombre de objetivo]" → goal_contribution con goalId del objetivo que matchea
+- Para "navigate_to": navigationTarget debe ser exactamente uno de los IDs válidos de la app
+- Para "query_budget": usar categoryId o title del presupuesto más relevante según el contexto
 - Inferí la cuenta más lógica según el contexto aunque no se mencione explícitamente''';
 
     final response = await http.post(
@@ -314,6 +324,87 @@ REGLAS IMPORTANTES:
         budgetCategoryId: matchedCategoryId,
         rawInput: input,
       );
+    }
+
+    // ── Navegar a sección ──
+    if (lower.contains('ir a') || lower.contains('abrir') || lower.contains('ir al') ||
+        lower.contains('mostrar') || lower.contains('llevame') || lower.contains('llevame a') ||
+        lower.contains('llévame')) {
+      String? target;
+      if (lower.contains('report') || lower.contains('estadística') || lower.contains('estadistica')) { target = 'reports'; }
+      else if (lower.contains('persona') || lower.contains('amigo') || lower.contains('gente')) { target = 'people'; }
+      else if (lower.contains('presupuesto')) { target = 'budget'; }
+      else if (lower.contains('cuenta')) { target = 'accounts'; }
+      else if (lower.contains('objetivo') || lower.contains('meta')) { target = 'goals'; }
+      else if (lower.contains('mes') || lower.contains('mensual') || lower.contains('resumen')) { target = 'monthly_overview'; }
+      else if (lower.contains('wishlist') || lower.contains('lista de deseos') || lower.contains('compras')) { target = 'wishlist'; }
+      else if (lower.contains('ahorro') || lower.contains('saving')) { target = 'savings'; }
+      else if (lower.contains('movimiento') || lower.contains('transaccion') || lower.contains('transacción')) { target = 'transactions'; }
+      else if (lower.contains('inicio') || lower.contains('home') || lower.contains('principal')) { target = 'home'; }
+      if (target != null) {
+        return NLTransaction(scenario: NLScenario.navigateTo, navigationTarget: target, rawInput: input);
+      }
+    }
+
+    // ── Agregar persona ──
+    if ((lower.contains('agregar') || lower.contains('añadir') || lower.contains('nuevo contacto') ||
+         lower.contains('nueva persona') || lower.contains('nuevo amigo')) &&
+        !lower.contains('presupuesto') && !lower.contains('objetivo')) {
+      String? name;
+      final nameRegex = RegExp(r'(?:agregar?|añadir?|amigo|contacto|persona)\s+(?:a\s+)?([A-Za-záéíóúÁÉÍÓÚñÑ]+)', caseSensitive: false);
+      final m = nameRegex.firstMatch(input);
+      if (m != null) name = m.group(1)?.trim();
+      return NLTransaction(scenario: NLScenario.createPerson, personName: name ?? '', rawInput: input);
+    }
+
+    // ── Consultas ──
+    if (lower.contains('cuánto tengo') || lower.contains('cuanto tengo') ||
+        lower.contains('mi saldo') || lower.contains('saldo total') ||
+        lower.contains('cuánto hay') || lower.contains('cuanto hay')) {
+      return NLTransaction(scenario: NLScenario.queryBalance, rawInput: input);
+    }
+    if (lower.contains('cómo va') || lower.contains('como va') ||
+        lower.contains('estado del presupuesto') || lower.contains('mi presupuesto')) {
+      String? catId;
+      // Try to extract category from input
+      catId = _matchBudgetCategory(lower);
+      return NLTransaction(scenario: NLScenario.queryBudget, categoryId: catId, rawInput: input);
+    }
+    if (lower.contains('cuánto me debe') || lower.contains('cuanto me debe') ||
+        lower.contains('me debe') || lower.contains('le debo') ||
+        lower.contains('deuda con') || lower.contains('cuánto le debo') || lower.contains('cuanto le debo')) {
+      // Try to find person name
+      String? personId;
+      String? personName;
+      for (final p in people) {
+        if (lower.contains(p.name.toLowerCase())) {
+          personId = p.id;
+          personName = p.name;
+          break;
+        }
+      }
+      return NLTransaction(scenario: NLScenario.queryDebt, personId: personId, personName: personName, rawInput: input);
+    }
+    // duplicateLastTx
+    if (lower.contains('lo mismo de ayer') || lower.contains('mismo que ayer') ||
+        lower.contains('igual que ayer') || lower.contains('repetir el último') ||
+        lower.contains('repetir ultimo') || lower.contains('repetilo') ||
+        lower.contains('lo de ayer') || (lower.contains('lo mismo') && lower.contains('ayer'))) {
+      return NLTransaction(scenario: NLScenario.duplicateLastTx, rawInput: input);
+    }
+    // settleDebt
+    if ((lower.contains('saldar') || lower.contains('liquidar')) &&
+        (lower.contains('todo') || lower.contains('deuda') || lower.contains('completo') || lower.contains('entero'))) {
+      String? personId;
+      String? personName;
+      for (final p in people) {
+        if (lower.contains(p.name.toLowerCase())) {
+          personId = p.id;
+          personName = p.name;
+          break;
+        }
+      }
+      return NLTransaction(scenario: NLScenario.settleDebt, personId: personId, personName: personName, rawInput: input);
     }
 
     // Detectar persona
@@ -694,8 +785,15 @@ REGLAS IMPORTANTES:
       case 'goal_contribution': scenario = NLScenario.goalContribution; break;
       case 'wishlist_purchase': scenario = NLScenario.wishlistPurchase; break;
       case 'internal_transfer': scenario = NLScenario.internalTransfer; break;
-      case 'create_goal':   scenario = NLScenario.createGoal; break;
-      case 'create_budget': scenario = NLScenario.createBudget; break;
+      case 'create_goal':    scenario = NLScenario.createGoal; break;
+      case 'create_budget':  scenario = NLScenario.createBudget; break;
+      case 'navigate_to':    scenario = NLScenario.navigateTo; break;
+      case 'create_person':  scenario = NLScenario.createPerson; break;
+      case 'query_balance':  scenario = NLScenario.queryBalance; break;
+      case 'query_budget':   scenario = NLScenario.queryBudget; break;
+      case 'query_debt':        scenario = NLScenario.queryDebt; break;
+      case 'duplicate_last_tx': scenario = NLScenario.duplicateLastTx; break;
+      case 'settle_debt':       scenario = NLScenario.settleDebt; break;
       default: scenario = NLScenario.unclear;
     }
 
@@ -712,6 +810,7 @@ REGLAS IMPORTANTES:
       goalId: json['goalId'] as String?,
       wishlistItemId: json['wishlistItemId'] as String?,
       budgetCategoryId: json['budgetCategoryId'] as String?,
+      navigationTarget: json['navigationTarget'] as String?,
       isSplit: json['isSplit'] as bool? ?? false,
       splitOwnAmount: (json['splitOwnAmount'] as num?)?.toDouble(),
       splitOtherAmount: (json['splitOtherAmount'] as num?)?.toDouble(),

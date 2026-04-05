@@ -49,6 +49,17 @@ dependencies:
   shared_preferences: ^2.3.2
   open_filex: ^4.5.0
 
+  # Firebase + Auth
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.3
+  google_sign_in: ^6.2.2
+  cloud_firestore: ^5.6.9
+  firebase_storage: ^12.4.6
+
+  # QR
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

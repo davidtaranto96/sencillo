@@ -21,6 +21,8 @@ import '../../../../core/logic/goal_service.dart';
 import '../../../../core/logic/budget_service.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../../../../core/logic/wishlist_service.dart';
+import '../../../../core/providers/shell_providers.dart';
+import '../../../budget/domain/models/budget.dart' as dom_b;
 
 // ─────────────────────────────────────────────────────────
 // Mapa de íconos y colores por categoría (compartido con tiles)
@@ -104,6 +106,7 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
   bool _isAnalyzing = false;
   NLTransaction? _parsed;         // resultado del parsing
   bool _showConfirmation = false;  // mostrar tarjeta de confirmación
+  List<_SuggestionItem> _liveSuggestions = [];  // sugerencias en tiempo real
 
   // Voice
   final SpeechToText _speech = SpeechToText();
@@ -114,6 +117,7 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
   void initState() {
     super.initState();
     _initSpeech();
+    _aiController.addListener(_onAiInputChanged);
   }
 
   Future<void> _initSpeech() async {
@@ -139,6 +143,7 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
     _amountController.dispose();
     _titleController.dispose();
     _noteController.dispose();
+    _aiController.removeListener(_onAiInputChanged);
     _aiController.dispose();
     super.dispose();
   }
@@ -176,6 +181,212 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 3),
     );
+  }
+
+  // ─────────────────────────────────────────────
+  // Sugerencias en tiempo real (local, sin API)
+  // ─────────────────────────────────────────────
+  void _onAiInputChanged() {
+    if (_showConfirmation) return;
+    final text = _aiController.text;
+    final suggestions = _generateSuggestions(text);
+    if (mounted) setState(() => _liveSuggestions = suggestions);
+  }
+
+  List<_SuggestionItem> _generateSuggestions(String text) {
+    if (text.trim().length < 3) return [];
+    final lower = text.toLowerCase();
+    final suggestions = <_SuggestionItem>[];
+
+    // ── Amount extraction ──
+    double? amount;
+    final amtK = RegExp(r'(\d[\d,.]*)[\s]*(?:k|mil)\b', caseSensitive: false);
+    final amtM = RegExp(r'(\d[\d,.]*)[\s]*(?:millones?|M)\b', caseSensitive: false);
+    final amtN = RegExp(r'\b(\d[\d.,]{2,})\b');
+    if (amtM.hasMatch(text)) {
+      final m = amtM.firstMatch(text)!;
+      amount = (double.tryParse(m.group(1)!.replaceAll('.','').replaceAll(',','.')) ?? 0) * 1000000;
+    } else if (amtK.hasMatch(text)) {
+      final m = amtK.firstMatch(text)!;
+      amount = (double.tryParse(m.group(1)!.replaceAll('.','').replaceAll(',','.')) ?? 0) * 1000;
+    } else if (amtN.hasMatch(text)) {
+      final m = amtN.firstMatch(text)!;
+      amount = double.tryParse(m.group(1)!.replaceAll('.','').replaceAll(',',''));
+    }
+    final amtStr = amount != null ? ' · ${formatAmount(amount)}' : '';
+    final amtNum = amount != null ? amount.toInt().toString() : '2500';
+
+    // ── Real app data for context-aware completions ──
+    final people = ref.read(peopleStreamProvider).valueOrNull ?? [];
+    final goals  = ref.read(activeGoalsProvider);
+    final firstName = people.isNotEmpty ? people.first.name : null;
+    final firstGoal = goals.isNotEmpty ? goals.first.name : null;
+    final withStr = firstName != null ? 'con $firstName' : 'con alguien';
+    final toStr   = firstName != null ? 'a $firstName' : 'a alguien';
+    final goalStr = firstGoal != null ? 'para $firstGoal' : 'para mi objetivo';
+
+    // ── Shared expense ──
+    if (lower.contains('dividí') || lower.contains('dividi') || lower.contains('compartí') ||
+        lower.contains('comparti') || (lower.contains(' con ') && amount != null)) {
+      suggestions.add(_SuggestionItem(
+        '👥 Gasto compartido$amtStr',
+        'Dividí $amtNum $withStr',
+        NLScenario.sharedExpense,
+      ));
+    }
+    // ── Loan given ──
+    if (lower.contains('presté') || lower.contains('preste') || lower.contains('le presté') || lower.contains('le di plata')) {
+      suggestions.add(_SuggestionItem(
+        '🤝 Préstamo dado$amtStr',
+        'Le presté $amtNum $toStr',
+        NLScenario.loanGiven,
+      ));
+    }
+    // ── Loan received ──
+    if (lower.contains('me devolvió') || lower.contains('me devolvio') || lower.contains('me pagó') || lower.contains('me pago')) {
+      final fromStr = firstName != null ? '$firstName me devolvió' : 'Me devolvieron';
+      suggestions.add(_SuggestionItem(
+        '💚 Devolución recibida$amtStr',
+        '$fromStr $amtNum',
+        NLScenario.loanReceived,
+      ));
+    }
+    // ── Income ──
+    if (lower.contains('cobré') || lower.contains('cobre') || lower.contains('sueldo') ||
+        lower.contains('ingresé') || lower.contains('ingrese') || lower.contains('gané') || lower.contains('gane')) {
+      suggestions.add(_SuggestionItem(
+        '💵 Ingreso$amtStr',
+        'Cobré $amtNum de sueldo',
+        NLScenario.income,
+      ));
+    }
+    // ── Goal contribution ──
+    if (lower.contains('ahorré') || lower.contains('ahorre') || lower.contains('guardé') ||
+        lower.contains('guarde') || lower.contains('objetivo') || lower.contains('meta') || lower.contains('ahorr')) {
+      suggestions.add(_SuggestionItem(
+        '🎯 Aporte a meta$amtStr',
+        'Guardé $amtNum $goalStr',
+        NLScenario.goalContribution,
+      ));
+    }
+    // ── Internal transfer ──
+    if (lower.contains('transferí') || lower.contains('transferi') || lower.contains('pasé') ||
+        lower.contains('pase') || lower.contains('moví')) {
+      suggestions.add(_SuggestionItem(
+        '🔄 Transferencia$amtStr',
+        'Transferí $amtNum entre cuentas',
+        NLScenario.internalTransfer,
+      ));
+    }
+    // ── Navigation ──
+    if (lower.startsWith('ir') || lower.contains('ir a') || lower.contains('abrir') ||
+        lower.contains('mostrar') || lower.contains('llévame') || lower.contains('llevame') ||
+        lower.startsWith('abr') || lower.startsWith('mostr')) {
+      String navTarget = 'personas';
+      if (lower.contains('report') || lower.contains('estadís')) {
+        navTarget = 'reportes';
+      } else if (lower.contains('presup')) {
+        navTarget = 'presupuestos';
+      } else if (lower.contains('cuent')) {
+        navTarget = 'cuentas';
+      } else if (lower.contains('objeti') || lower.contains('meta')) {
+        navTarget = 'objetivos';
+      } else if (lower.contains('person') || lower.contains('amigo') || lower.contains('contacto')) {
+        navTarget = 'personas';
+      }
+      suggestions.add(_SuggestionItem(
+        '🧭 Ir a $navTarget',
+        'Ir a $navTarget',
+        NLScenario.navigateTo,
+      ));
+    }
+    // ── Create person ──
+    if (lower.contains('agregar') || lower.contains('añadir') || lower.contains('nuevo amigo') || lower.contains('nuevo contacto')) {
+      suggestions.add(_SuggestionItem(
+        '👤 Nuevo contacto',
+        'Agregar a Pedro',
+        NLScenario.createPerson,
+      ));
+    }
+    // ── Query balance ──
+    if (lower.contains('cuánto tengo') || lower.contains('cuanto tengo') || lower.contains('saldo') ||
+        lower.contains('cuánto hay') || lower.contains('cuanto hay') || lower.contains('cuán') || lower.contains('tengo')) {
+      suggestions.add(_SuggestionItem(
+        '📊 Consultar saldo',
+        '¿Cuánto tengo disponible?',
+        NLScenario.queryBalance,
+      ));
+    }
+    // ── Query budget ──
+    if (lower.contains('cómo va') || lower.contains('como va') || lower.contains('mi presupuesto') || lower.contains('presup')) {
+      suggestions.add(_SuggestionItem(
+        '📈 Estado presupuesto',
+        '¿Cómo va mi presupuesto?',
+        NLScenario.queryBudget,
+      ));
+    }
+    // ── Query debt ──
+    if (lower.contains('me debe') || lower.contains('le debo')) {
+      final debtStr = firstName != null ? '¿Cuánto me debe $firstName?' : '¿Cuánto me debe alguien?';
+      suggestions.add(_SuggestionItem(
+        '🤔 Consultar deuda',
+        debtStr,
+        NLScenario.queryDebt,
+      ));
+    }
+    // ── Duplicate last transaction ──
+    if (lower.contains('ayer') || lower.contains('mismo') || lower.contains('repetir') || lower.contains('repet')) {
+      suggestions.add(_SuggestionItem(
+        '🔁 Repetir último',
+        'Lo mismo de ayer',
+        NLScenario.duplicateLastTx,
+      ));
+    }
+    // ── Settle debt ──
+    if (lower.contains('saldar') || lower.contains('liquidar') || lower.contains('salda')) {
+      final settleStr = firstName != null ? 'Saldar todo con $firstName' : 'Saldar toda la deuda';
+      suggestions.add(_SuggestionItem(
+        '💸 Saldar deuda',
+        settleStr,
+        NLScenario.settleDebt,
+      ));
+    }
+    // ── Spend history → reports ──
+    if (lower.contains('gasté esta') || lower.contains('gaste esta') ||
+        lower.contains('gasté este') || lower.contains('gaste este') ||
+        lower.contains('gasté en el') || lower.contains('cuánto gasté') || lower.contains('cuanto gaste')) {
+      suggestions.add(_SuggestionItem(
+        '📊 Ver historial',
+        'Ir a reportes',
+        NLScenario.navigateTo,
+      ));
+    }
+    // ── Create goal ──
+    if (lower.contains('crear') && lower.contains('objetivo') && amount != null) {
+      suggestions.add(_SuggestionItem(
+        '⭐ Crear objetivo$amtStr',
+        'Crear objetivo viaje $amtNum',
+        NLScenario.createGoal,
+      ));
+    }
+    // ── Create budget ──
+    if (lower.contains('crear') && lower.contains('presupuesto') && amount != null) {
+      suggestions.add(_SuggestionItem(
+        '📋 Crear presupuesto$amtStr',
+        'Crear presupuesto comida $amtNum',
+        NLScenario.createBudget,
+      ));
+    }
+    // ── Default: gasto si hay monto ──
+    if (suggestions.isEmpty && amount != null) {
+      suggestions.add(_SuggestionItem('💸 Gasto$amtStr', 'Gasté $amtNum en supermercado', NLScenario.expense));
+    }
+    // ── Default: gasto por keyword ──
+    if (suggestions.isEmpty && (lower.contains('gast') || lower.contains('pagué') || lower.contains('pag') || lower.contains('compr'))) {
+      suggestions.add(_SuggestionItem('💸 Gasto', 'Gasté 2500 en supermercado', NLScenario.expense));
+    }
+
+    return suggestions.take(3).toList();
   }
 
   // ─────────────────────────────────────────────
@@ -230,8 +441,14 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
   Future<void> _confirmParsed(NLTransaction tx) async {
     final amount = tx.amount ?? 0;
 
-    // createGoal y createBudget no requieren monto obligatorio
-    if (amount <= 0 && tx.scenario != NLScenario.createGoal && tx.scenario != NLScenario.createBudget) {
+    // Scenarios that don't need an amount
+    const noAmountNeeded = {
+      NLScenario.createGoal, NLScenario.createBudget,
+      NLScenario.navigateTo, NLScenario.createPerson,
+      NLScenario.queryBalance, NLScenario.queryBudget, NLScenario.queryDebt,
+      NLScenario.duplicateLastTx, NLScenario.settleDebt,
+    };
+    if (amount <= 0 && !noAmountNeeded.contains(tx.scenario)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se detectó un monto válido')),
       );
@@ -486,6 +703,96 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
           }
           break;
 
+        case NLScenario.navigateTo:
+          final target = tx.navigationTarget;
+          if (target != null && mounted) {
+            Navigator.of(context).pop();
+            ref.read(navigateToTabProvider.notifier).state = target;
+          }
+          return;
+
+        case NLScenario.createPerson:
+          final name = tx.personName;
+          if (name != null && name.isNotEmpty) {
+            await ref.read(peopleServiceProvider).addPerson(name: name);
+            if (mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Contacto "$name" agregado'),
+                  backgroundColor: AppTheme.colorTransfer.withValues(alpha: 0.8),
+                ),
+              );
+            }
+          }
+          return;
+
+        case NLScenario.queryBalance:
+          if (mounted) {
+            Navigator.of(context).pop();
+            ref.read(navigateToTabProvider.notifier).state = 'accounts';
+          }
+          return;
+
+        case NLScenario.queryBudget:
+          if (mounted) {
+            Navigator.of(context).pop();
+            ref.read(navigateToTabProvider.notifier).state = 'budget';
+          }
+          return;
+
+        case NLScenario.queryDebt:
+          if (mounted) {
+            Navigator.of(context).pop();
+            ref.read(navigateToTabProvider.notifier).state = 'people';
+          }
+          return;
+
+        case NLScenario.duplicateLastTx:
+          final txs = ref.read(transactionsStreamProvider).value ?? [];
+          final lastTx = txs.isNotEmpty ? txs.first : null;
+          if (lastTx != null) {
+            await ref.read(transactionServiceProvider).duplicateTransaction(lastTx.id);
+            if (mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('"${lastTx.title}" registrado de nuevo'),
+                  backgroundColor: AppTheme.colorTransfer.withValues(alpha: 0.85),
+                ),
+              );
+            }
+          }
+          return;
+
+        case NLScenario.settleDebt:
+          final personId = tx.personId;
+          if (personId != null) {
+            final peopleList = ref.read(peopleStreamProvider).value ?? [];
+            final person = peopleList.where((p) => p.id == personId).firstOrNull;
+            if (person != null && person.totalBalance != 0) {
+              await ref.read(peopleServiceProvider).liquidateDebt(
+                personId: personId,
+                amount: person.totalBalance.abs(),
+              );
+              if (mounted) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Deuda con ${person.name} saldada'),
+                    backgroundColor: AppTheme.colorIncome.withValues(alpha: 0.85),
+                  ),
+                );
+              }
+            }
+          } else {
+            if (mounted) {
+              Navigator.of(context).pop();
+              ref.read(navigateToTabProvider.notifier).state = 'people';
+            }
+          }
+          return;
+
         case NLScenario.unclear:
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No se pudo interpretar el movimiento. Usá el modo manual.')),
@@ -587,20 +894,38 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Escribí o dictá como hablás normalmente.',
-          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+          'Escribí o dictá tu movimiento en lenguaje natural.',
+          style: GoogleFonts.inter(color: cs.onSurfaceVariant, fontSize: 13),
         ),
         const SizedBox(height: 16),
 
-        // Input area
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        // ── Input area — glassmorphism upgrade ──
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2C),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _isListening ? AppTheme.colorExpense : cs.outlineVariant),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: _isListening ? 0.08 : 0.05),
+                Colors.white.withValues(alpha: _isListening ? 0.04 : 0.02),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _isListening
+                  ? AppTheme.colorExpense.withValues(alpha: 0.6)
+                  : Colors.white.withValues(alpha: 0.10),
+              width: _isListening ? 1.5 : 1.0,
+            ),
+            boxShadow: _isListening
+                ? [BoxShadow(color: AppTheme.colorExpense.withValues(alpha: 0.12), blurRadius: 20, spreadRadius: 2)]
+                : [],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: _isListening
@@ -611,9 +936,12 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
                           Expanded(
                             child: Text(
                               _aiController.text.isEmpty ? 'Escuchando...' : _aiController.text,
-                              style: TextStyle(
-                                color: _aiController.text.isEmpty ? AppTheme.colorTransfer : Colors.white,
+                              style: GoogleFonts.inter(
+                                color: _aiController.text.isEmpty
+                                    ? AppTheme.colorExpense.withValues(alpha: 0.7)
+                                    : Colors.white,
                                 fontStyle: _aiController.text.isEmpty ? FontStyle.italic : FontStyle.normal,
+                                fontSize: 14,
                               ),
                             ),
                           ),
@@ -622,44 +950,77 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
                     : TextField(
                         controller: _aiController,
                         autofocus: true,
-                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
                         maxLines: 3,
                         minLines: 1,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Ej. Pagué 45 mil de sushi con Juan...',
-                          hintStyle: TextStyle(color: Colors.white38),
+                          hintStyle: GoogleFonts.inter(color: Colors.white30, fontSize: 14),
                           border: InputBorder.none,
+                          isDense: true,
                         ),
                         onSubmitted: (_) => _processAiInput(),
                       ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
+              const SizedBox(width: 10),
+              // Mic button with ripple animation
+              _MicButton(
+                isListening: _isListening,
                 onTap: _toggleListening,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: _isListening ? AppTheme.colorExpense.withValues(alpha: 0.15) : AppTheme.colorTransfer.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                    color: _isListening ? AppTheme.colorExpense : AppTheme.colorTransfer,
-                    size: 22,
-                  ),
-                ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Ejemplos de uso — scroll horizontal
-        if (!_showConfirmation && !_isAnalyzing) ...[
+        // ── Live suggestions (aparecen mientras escribe) ──
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SizeTransition(sizeFactor: animation, axisAlignment: -1, child: child),
+          ),
+          child: (!_showConfirmation && !_isAnalyzing && _liveSuggestions.isNotEmpty)
+              ? Padding(
+                  key: const ValueKey('live_suggestions'),
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Interpretando como:',
+                        style: GoogleFonts.inter(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: _liveSuggestions
+                            .map((s) => _LiveSuggestionChip(
+                                  item: s,
+                                  controller: _aiController,
+                                  onTap: () => setState(() {}),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('no_suggestions')),
+        ),
+
+        // ── Ejemplos de uso (cuando input vacío) ──
+        if (!_showConfirmation && !_isAnalyzing && _aiController.text.isEmpty) ...[
+          Text(
+            'Ejemplos:',
+            style: GoogleFonts.inter(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
           SizedBox(
-            height: 36,
+            height: 32,
             child: ListView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -668,53 +1029,64 @@ class _AddTransactionBottomSheetState extends ConsumerState<AddTransactionBottom
                 const SizedBox(width: 8),
                 _ExampleChip('Cobré el sueldo 200k', _aiController, () => setState(() {})),
                 const SizedBox(width: 8),
-                _ExampleChip('Ahorré 50k para viaje', _aiController, () => setState(() {})),
-                const SizedBox(width: 8),
-                _ExampleChip('Crear objetivo Notebook 800k', _aiController, () => setState(() {})),
-                const SizedBox(width: 8),
-                _ExampleChip('Nuevo presupuesto comida 150k', _aiController, () => setState(() {})),
+                _ExampleChip('Dividí taxi con María 3600', _aiController, () => setState(() {})),
                 const SizedBox(width: 8),
                 _ExampleChip('Presté 10k a Juan', _aiController, () => setState(() {})),
                 const SizedBox(width: 8),
-                _ExampleChip('Dividí taxi con María 3600', _aiController, () => setState(() {})),
+                _ExampleChip('Ir a reportes', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Cuánto tengo?', _aiController, () => setState(() {})),
+                const SizedBox(width: 8),
+                _ExampleChip('Agregar a Pedro', _aiController, () => setState(() {})),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
         ],
 
-        // Tarjeta de confirmación
+        // ── Tarjeta de confirmación ──
         if (_showConfirmation && _parsed != null)
-          _AiConfirmationCard(
-            tx: _parsed!,
-            accounts: ref.watch(accountsStreamProvider).value ?? [],
-            people: ref.watch(peopleStreamProvider).value ?? [],
-            onConfirm: _confirmParsed,
-            onEdit: () => setState(() => _showConfirmation = false),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            transitionBuilder: (child, animation) => SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: _AiConfirmationCard(
+              key: ValueKey(_parsed!.rawInput),
+              tx: _parsed!,
+              accounts: ref.watch(accountsStreamProvider).value ?? [],
+              people: ref.watch(peopleStreamProvider).value ?? [],
+              budgets: ref.watch(budgetsStreamProvider).valueOrNull ?? [],
+              onConfirm: _confirmParsed,
+              onEdit: () => setState(() {
+                _showConfirmation = false;
+                _liveSuggestions = _generateSuggestions(_aiController.text);
+              }),
+            ),
           )
         else
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _isAnalyzing ? null : _processAiInput,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.colorTransfer,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: _isAnalyzing
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-                        SizedBox(width: 12),
-                        Text('Analizando con IA...', style: TextStyle(fontSize: 15)),
-                      ],
-                    )
-                  : const Text('Procesar Movimiento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            ),
-          ),
+          // ── Process button / shimmer ──
+          _isAnalyzing
+              ? _AnalyzingButton()
+              : SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _processAiInput,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.colorTransfer,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Text(
+                      'Analizar con IA ✦',
+                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
       ],
     );
   }
@@ -959,13 +1331,16 @@ class _AiConfirmationCard extends ConsumerStatefulWidget {
   final NLTransaction tx;
   final List<dom_acc.Account> accounts;
   final List<dom_p.Person> people;
+  final List<dom_b.Budget> budgets;
   final void Function(NLTransaction) onConfirm;
   final VoidCallback onEdit;
 
   const _AiConfirmationCard({
+    super.key,
     required this.tx,
     required this.accounts,
     required this.people,
+    required this.budgets,
     required this.onConfirm,
     required this.onEdit,
   });
@@ -1060,6 +1435,7 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
         return AppTheme.colorIncome;
       case NLScenario.cardPayment:
       case NLScenario.createBudget:
+      case NLScenario.queryBudget:
         return AppTheme.colorWarning;
       case NLScenario.loanGiven:
       case NLScenario.expense:
@@ -1072,7 +1448,18 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
         return AppTheme.colorTransfer;
       case NLScenario.sharedExpense:
         return Colors.orange;
-      default:
+      case NLScenario.navigateTo:
+        return const Color(0xFF6C63FF);
+      case NLScenario.createPerson:
+        return const Color(0xFF4ECDC4);
+      case NLScenario.queryBalance:
+      case NLScenario.queryDebt:
+        return AppTheme.colorTransfer;
+      case NLScenario.duplicateLastTx:
+        return AppTheme.colorTransfer;
+      case NLScenario.settleDebt:
+        return AppTheme.colorIncome;
+      case NLScenario.unclear:
         return Colors.white54;
     }
   }
@@ -1103,7 +1490,21 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
         return Icons.emoji_events_rounded;
       case NLScenario.createBudget:
         return Icons.donut_large_rounded;
-      default:
+      case NLScenario.navigateTo:
+        return Icons.explore_rounded;
+      case NLScenario.createPerson:
+        return Icons.person_add_rounded;
+      case NLScenario.queryBalance:
+        return Icons.account_balance_wallet_rounded;
+      case NLScenario.queryBudget:
+        return Icons.pie_chart_rounded;
+      case NLScenario.queryDebt:
+        return Icons.handshake_rounded;
+      case NLScenario.duplicateLastTx:
+        return Icons.repeat_rounded;
+      case NLScenario.settleDebt:
+        return Icons.check_circle_outline_rounded;
+      case NLScenario.unclear:
         return Icons.help_outline_rounded;
     }
   }
@@ -1130,9 +1531,226 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
     return _tx.title ?? categoryId.split('-').first;
   }
 
+  Widget _buildInfoCard(BuildContext context, Color color) {
+    final accounts = widget.accounts;
+    final people = widget.people;
+    final budgets = widget.budgets;
+
+    String title;
+    String body;
+    String actionLabel;
+
+    switch (_tx.scenario) {
+      case NLScenario.navigateTo:
+        final tabNames = {
+          'home': 'Inicio', 'transactions': 'Movimientos', 'budget': 'Presupuesto',
+          'goals': 'Objetivos', 'people': 'Personas', 'reports': 'Reportes',
+          'accounts': 'Cuentas', 'monthly_overview': 'Resumen mensual',
+          'wishlist': 'Lista de compras', 'savings': 'Ahorros',
+        };
+        final dest = tabNames[_tx.navigationTarget] ?? _tx.navigationTarget ?? 'esa sección';
+        title = 'Navegar a $dest';
+        body = 'Te llevo directo a $dest.';
+        actionLabel = 'Ir ahora →';
+        break;
+      case NLScenario.createPerson:
+        final name = _tx.personName ?? '';
+        title = 'Nuevo contacto: $name';
+        body = 'Se agregará "$name" a tu lista de personas.';
+        actionLabel = 'Agregar contacto';
+        break;
+      case NLScenario.queryBalance:
+        final total = accounts.fold(0.0, (sum, a) => sum + a.balance);
+        final lines = accounts.take(4).map((a) => '${a.name}: ${formatAmount(a.balance)}').join('\n');
+        title = 'Saldo total: ${formatAmount(total)}';
+        body = lines.isNotEmpty ? lines : 'No tenés cuentas configuradas.';
+        actionLabel = 'Ir a Cuentas';
+        break;
+      case NLScenario.queryBudget:
+        dom_b.Budget? budget;
+        if (_tx.categoryId != null) {
+          budget = budgets.where((b) => b.categoryId == _tx.categoryId).firstOrNull;
+        }
+        budget ??= budgets.firstOrNull;
+        if (budget != null) {
+          final pct = budget.limitAmount > 0 ? (budget.spentAmount / budget.limitAmount * 100).clamp(0, 100).toInt() : 0;
+          title = 'Presupuesto: ${budget.categoryName}';
+          body = 'Gastado: ${formatAmount(budget.spentAmount)} de ${formatAmount(budget.limitAmount)} ($pct%)';
+        } else {
+          title = 'Sin presupuestos';
+          body = 'No tenés presupuestos activos. Creá uno desde Presupuesto.';
+        }
+        actionLabel = 'Ver presupuestos';
+        break;
+      case NLScenario.queryDebt:
+        dom_p.Person? person;
+        if (_tx.personId != null) {
+          person = people.where((p) => p.id == _tx.personId).firstOrNull;
+        } else if (_tx.personName != null) {
+          final name = _tx.personName!.toLowerCase();
+          person = people.where((p) => p.name.toLowerCase().contains(name)).firstOrNull;
+        }
+        if (person != null) {
+          final balance = person.totalBalance;
+          title = balance > 0
+              ? '${person.name} te debe ${formatAmount(balance)}'
+              : balance < 0
+                  ? 'Le debés ${formatAmount(balance.abs())} a ${person.name}'
+                  : '${person.name} — Sin deuda';
+          body = balance == 0 ? 'Están al día.' : '';
+        } else {
+          title = 'Persona no encontrada';
+          body = _tx.personName != null
+              ? '"${_tx.personName}" no está en tu lista de contactos.'
+              : 'No se detectó a quién consultar.';
+        }
+        actionLabel = 'Ver personas';
+        break;
+      case NLScenario.duplicateLastTx:
+        final txs = ref.read(transactionsStreamProvider).value ?? [];
+        final last = txs.isNotEmpty ? txs.first : null;
+        if (last != null) {
+          title = '🔁 Repetir movimiento';
+          body = '"${last.title}"\n${formatAmount(last.amount)} · Se registrará con la fecha de hoy.';
+          actionLabel = 'Registrar de nuevo';
+        } else {
+          title = 'Sin movimientos previos';
+          body = 'No hay movimientos anteriores para repetir.';
+          actionLabel = 'Cerrar';
+        }
+        break;
+      case NLScenario.settleDebt:
+        dom_p.Person? debtPerson;
+        if (_tx.personId != null) {
+          debtPerson = people.where((p) => p.id == _tx.personId).firstOrNull;
+        } else if (_tx.personName != null) {
+          final name = _tx.personName!.toLowerCase();
+          debtPerson = people.where((p) => p.name.toLowerCase().contains(name)).firstOrNull;
+        }
+        if (debtPerson != null) {
+          final balance = debtPerson.totalBalance;
+          if (balance > 0) {
+            title = '💸 Saldar con ${debtPerson.name}';
+            body = '${debtPerson.name} te debe ${formatAmount(balance)}.\nSe registrará el cobro completo.';
+            actionLabel = 'Cobrar ahora';
+          } else if (balance < 0) {
+            title = '💸 Saldar con ${debtPerson.name}';
+            body = 'Le debés ${formatAmount(balance.abs())} a ${debtPerson.name}.\nSe registrará el pago completo.';
+            actionLabel = 'Pagar ahora';
+          } else {
+            title = 'Sin deuda pendiente';
+            body = 'Están al día con ${debtPerson.name}.';
+            actionLabel = 'Cerrar';
+          }
+        } else {
+          title = '¿Con quién?';
+          body = _tx.personName != null
+              ? '"${_tx.personName}" no está en tu lista de contactos.'
+              : 'No se detectó a quién saldarle la deuda.';
+          actionLabel = 'Ver personas';
+        }
+        break;
+      default:
+        title = _tx.scenarioLabel;
+        body = '';
+        actionLabel = 'OK';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(_scenarioIcon, color: color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          if (body.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                body,
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13, height: 1.5),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: widget.onEdit,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white54,
+                    side: const BorderSide(color: Colors.white12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: () => widget.onConfirm(_finalTx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(actionLabel, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = _scenarioColor;
+
+    // ── Info-only card for navigate/query scenarios ──
+    if (_tx.scenario == NLScenario.navigateTo ||
+        _tx.scenario == NLScenario.queryBalance ||
+        _tx.scenario == NLScenario.queryBudget ||
+        _tx.scenario == NLScenario.queryDebt ||
+        _tx.scenario == NLScenario.createPerson ||
+        _tx.scenario == NLScenario.duplicateLastTx ||
+        _tx.scenario == NLScenario.settleDebt) {
+      return _buildInfoCard(context, color);
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1148,13 +1766,13 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(_scenarioIcon, color: color, size: 20),
+                child: Icon(_scenarioIcon, color: color, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1162,14 +1780,22 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'IA detectó: ${_tx.scenarioLabel}',
-                      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+                      _tx.scenarioLabel,
+                      style: GoogleFonts.inter(color: color, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.3),
                     ),
-                    Text(
-                      '"${_tx.rawInput}"',
-                      style: const TextStyle(color: Colors.white38, fontSize: 11),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Container(
+                      margin: const EdgeInsets.only(top: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '"${_tx.rawInput}"',
+                        style: GoogleFonts.inter(color: Colors.white38, fontSize: 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -1441,6 +2067,9 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
 
           const SizedBox(height: 8),
 
+          // ── Alerta de presupuesto ──
+          _BudgetAlertBanner(tx: _tx, amountText: _amountCtrl.text, budgets: widget.budgets),
+
           // Botones
           Row(
             children: [
@@ -1589,6 +2218,81 @@ class _PersonBalanceChip extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// Budget alert banner — shown in confirmation card
+// ─────────────────────────────────────────────────────────
+class _BudgetAlertBanner extends StatelessWidget {
+  final NLTransaction tx;
+  final String amountText;
+  final List<dom_b.Budget> budgets;
+
+  const _BudgetAlertBanner({
+    required this.tx,
+    required this.amountText,
+    required this.budgets,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Only relevant for spending scenarios with a known category
+    if (tx.scenario != NLScenario.expense &&
+        tx.scenario != NLScenario.sharedExpense &&
+        tx.scenario != NLScenario.wishlistPurchase) {
+      return const SizedBox.shrink();
+    }
+    final catId = tx.categoryId;
+    if (catId == null) return const SizedBox.shrink();
+
+    final budget = budgets.where((b) => b.categoryId == catId).firstOrNull;
+    if (budget == null || budget.limitAmount <= 0) return const SizedBox.shrink();
+
+    final amount = parseFormattedAmount(amountText);
+    if (amount <= 0) return const SizedBox.shrink();
+
+    final projected = budget.spentAmount + amount;
+    final pct = (projected / budget.limitAmount * 100).clamp(0, 999).toInt();
+    final willExceed = projected > budget.limitAmount;
+    final isNear = pct >= 80;
+
+    if (!isNear && !willExceed) return const SizedBox.shrink();
+
+    final color = willExceed ? AppTheme.colorExpense : AppTheme.colorWarning;
+    final emoji = willExceed ? '⚠️' : '⚡';
+    final remaining = (budget.limitAmount - budget.spentAmount).clamp(0.0, double.infinity);
+    final msg = willExceed
+        ? 'Superás el presupuesto de ${budget.categoryName} ($pct%). Quedaban ${formatAmount(remaining)}.'
+        : 'Llegás al $pct% del presupuesto de ${budget.categoryName}.';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                msg,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoChip extends StatelessWidget {
   final String label;
   final Color color;
@@ -1730,6 +2434,238 @@ class _TypeSelector extends StatelessWidget {
           _TypeButton(isSelected: current == TransactionType.transfer, label: 'Transfer', onTap: () => onChanged(TransactionType.transfer)),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Live suggestion data + chip
+// ─────────────────────────────────────────────────────────
+class _SuggestionItem {
+  final String label;       // texto corto del chip: "💸 Gasto · $2.500"
+  final String completion;  // frase completa a insertar en el campo
+  final NLScenario scenario;
+  const _SuggestionItem(this.label, this.completion, this.scenario);
+}
+
+class _LiveSuggestionChip extends StatelessWidget {
+  final _SuggestionItem item;
+  final TextEditingController controller;
+  final VoidCallback? onTap;
+  const _LiveSuggestionChip({required this.item, required this.controller, this.onTap});
+
+  Color _colorFor(NLScenario s) {
+    switch (s) {
+      case NLScenario.income:
+      case NLScenario.loanReceived:
+        return AppTheme.colorIncome;
+      case NLScenario.expense:
+      case NLScenario.loanGiven:
+      case NLScenario.loanRepayment:
+        return AppTheme.colorExpense;
+      case NLScenario.sharedExpense:
+        return Colors.orange;
+      case NLScenario.navigateTo:
+        return const Color(0xFF6C63FF);
+      case NLScenario.createPerson:
+        return const Color(0xFF4ECDC4);
+      case NLScenario.queryBalance:
+      case NLScenario.queryBudget:
+      case NLScenario.queryDebt:
+      case NLScenario.goalContribution:
+      case NLScenario.createGoal:
+      case NLScenario.internalTransfer:
+      case NLScenario.duplicateLastTx:
+        return AppTheme.colorTransfer;
+      case NLScenario.settleDebt:
+        return AppTheme.colorIncome;
+      default:
+        return Colors.white38;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _colorFor(item.scenario);
+    return GestureDetector(
+      onTap: () {
+        controller.text = item.completion;
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+        onTap?.call();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.28)),
+        ),
+        child: Text(
+          item.label,
+          style: GoogleFonts.inter(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Mic button with ripple animation while listening
+// ─────────────────────────────────────────────────────────
+class _MicButton extends StatefulWidget {
+  final bool isListening;
+  final VoidCallback onTap;
+  const _MicButton({required this.isListening, required this.onTap});
+
+  @override
+  State<_MicButton> createState() => _MicButtonState();
+}
+
+class _MicButtonState extends State<_MicButton> with SingleTickerProviderStateMixin {
+  late AnimationController _ripple;
+
+  @override
+  void initState() {
+    super.initState();
+    _ripple = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    if (widget.isListening) _ripple.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_MicButton old) {
+    super.didUpdateWidget(old);
+    if (widget.isListening && !old.isListening) {
+      _ripple.repeat();
+    } else if (!widget.isListening && old.isListening) {
+      _ripple.stop();
+      _ripple.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ripple.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: SizedBox(
+        width: 50,
+        height: 50,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (widget.isListening)
+              AnimatedBuilder(
+                animation: _ripple,
+                builder: (_, __) => Container(
+                  width: 50 + (_ripple.value * 14),
+                  height: 50 + (_ripple.value * 14),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.colorExpense.withValues(alpha: (1 - _ripple.value) * 0.25),
+                  ),
+                ),
+              ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: widget.isListening
+                    ? AppTheme.colorExpense.withValues(alpha: 0.2)
+                    : AppTheme.colorTransfer.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.isListening
+                      ? AppTheme.colorExpense.withValues(alpha: 0.4)
+                      : AppTheme.colorTransfer.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Icon(
+                widget.isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                color: widget.isListening ? AppTheme.colorExpense : AppTheme.colorTransfer,
+                size: 22,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Analyzing shimmer button
+// ─────────────────────────────────────────────────────────
+class _AnalyzingButton extends StatefulWidget {
+  @override
+  State<_AnalyzingButton> createState() => _AnalyzingButtonState();
+}
+
+class _AnalyzingButtonState extends State<_AnalyzingButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmer;
+  int _textIndex = 0;
+  static const _texts = ['Analizando...', 'Entendiendo el gasto...', 'Identificando categoría...', 'Procesando con IA ✦'];
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmer = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    // Rotate text every 1.5s
+    Future.delayed(const Duration(milliseconds: 1500), _rotateText);
+  }
+
+  void _rotateText() {
+    if (!mounted) return;
+    setState(() => _textIndex = (_textIndex + 1) % _texts.length);
+    Future.delayed(const Duration(milliseconds: 1500), _rotateText);
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _shimmer,
+      builder: (context, _) {
+        return Container(
+          width: double.infinity,
+          height: 52,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment((-1.0 + _shimmer.value * 3).clamp(-1.0, 1.0), 0),
+              end: Alignment((-1.0 + _shimmer.value * 3 + 1).clamp(-1.0, 1.0), 0),
+              colors: [
+                AppTheme.colorTransfer.withValues(alpha: 0.6),
+                AppTheme.colorTransfer,
+                AppTheme.colorTransfer.withValues(alpha: 0.6),
+              ],
+            ),
+          ),
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              child: Text(
+                _texts[_textIndex],
+                key: ValueKey(_textIndex),
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

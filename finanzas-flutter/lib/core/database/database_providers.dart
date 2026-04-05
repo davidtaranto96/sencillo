@@ -113,6 +113,7 @@ final peopleStreamProvider = StreamProvider<List<dom_p.Person>>((ref) {
         avatarColor: Color(e.colorValue),
         cbu: e.cbu,
         notes: e.notes,
+        linkedUserId: e.linkedUserId,
       );
     }).toList();
   });

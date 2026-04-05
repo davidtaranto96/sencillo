@@ -34,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   /// Ensures a default "Efectivo" cash account exists.
   Future<void> ensureDefaultCashAccount() async {
@@ -82,6 +82,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 7) {
         await migrator.createTable(wishlistTable);
+      }
+      if (from < 8) {
+        await migrator.addColumn(personsTable, personsTable.linkedUserId);
       }
     },
   );

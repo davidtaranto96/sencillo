@@ -20,6 +20,7 @@ class Person extends Equatable {
   final String? cbu;
   final String? notes;
   final List<DebtDetail> groupDebts;
+  final String? linkedUserId; // Firebase UID si está vinculado como amigo
   // Positivo: Ellos me deben plata a mí.
   // Negativo: Yo les debo plata a ellos.
 
@@ -32,13 +33,14 @@ class Person extends Equatable {
     this.cbu,
     this.notes,
     this.groupDebts = const [],
+    this.linkedUserId,
   });
 
   String get displayName => alias ?? name;
-  
+  bool get isLinked => linkedUserId != null;
   bool get owesMe => totalBalance > 0;
   bool get iOweThem => totalBalance < 0;
 
   @override
-  List<Object?> get props => [id, name, totalBalance, cbu, notes, groupDebts];
+  List<Object?> get props => [id, name, totalBalance, cbu, notes, groupDebts, linkedUserId];
 }

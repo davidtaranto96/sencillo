@@ -12,6 +12,13 @@ enum NLScenario {
   internalTransfer,  // transferencia entre mis propias cuentas
   createGoal,        // crear un nuevo objetivo de ahorro
   createBudget,      // crear un nuevo presupuesto
+  navigateTo,        // navegar a una sección de la app
+  createPerson,      // agregar un nuevo contacto / persona
+  queryBalance,      // consultar saldo de cuentas
+  queryBudget,       // consultar estado de un presupuesto
+  queryDebt,         // consultar deuda con una persona
+  duplicateLastTx,   // "lo mismo de ayer" — duplicar último movimiento
+  settleDebt,        // "saldar todo con Juan" — liquidar deuda completa
   unclear,           // no se pudo interpretar
 }
 
@@ -35,6 +42,8 @@ class NLTransaction {
   final double? splitOtherAmount;  // para sharedExpense: parte ajena
   final String? note;
   final String rawInput;
+  // Nuevos campos
+  final String? navigationTarget;  // para navigateTo: tab ID ('people', 'budget', etc.)
 
   const NLTransaction({
     required this.scenario,
@@ -55,6 +64,7 @@ class NLTransaction {
     this.splitOtherAmount,
     this.note,
     required this.rawInput,
+    this.navigationTarget,
   });
 
   /// Descripción legible del escenario para mostrar al usuario
@@ -84,6 +94,20 @@ class NLTransaction {
         return 'Crear objetivo';
       case NLScenario.createBudget:
         return 'Crear presupuesto';
+      case NLScenario.navigateTo:
+        return 'Navegar';
+      case NLScenario.createPerson:
+        return 'Nuevo contacto';
+      case NLScenario.queryBalance:
+        return 'Consultar saldo';
+      case NLScenario.queryBudget:
+        return 'Consultar presupuesto';
+      case NLScenario.queryDebt:
+        return 'Consultar deuda';
+      case NLScenario.duplicateLastTx:
+        return 'Repetir movimiento';
+      case NLScenario.settleDebt:
+        return 'Saldar deuda';
       case NLScenario.unclear:
         return 'No reconocido';
     }
@@ -108,6 +132,7 @@ class NLTransaction {
     double? splitOtherAmount,
     String? note,
     String? rawInput,
+    String? navigationTarget,
   }) {
     return NLTransaction(
       scenario: scenario ?? this.scenario,
@@ -128,6 +153,7 @@ class NLTransaction {
       splitOtherAmount: splitOtherAmount ?? this.splitOtherAmount,
       note: note ?? this.note,
       rawInput: rawInput ?? this.rawInput,
+      navigationTarget: navigationTarget ?? this.navigationTarget,
     );
   }
 }

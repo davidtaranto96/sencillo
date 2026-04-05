@@ -242,17 +242,39 @@ class _AppShellState extends ConsumerState<AppShell> {
             children: enabledTabIds.map(_pageForTab).toList(),
           ),
 
-          // ── Morphing FAB ──
-          if (fabIcon != null && fabAction != null)
-            Positioned(
-              right: 16,
-              bottom: fabBottom,
-              child: AppFab(
-                icon: fabIcon,
-                onPressed: fabAction,
-                onLongPress: fabLongPress,
+          // ── Morphing FAB — always in tree, animated in/out ──
+          Positioned(
+            right: 16,
+            bottom: fabBottom,
+            child: AnimatedOpacity(
+              opacity: fabAction != null ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              child: AnimatedScale(
+                scale: fabAction != null ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOutCubicEmphasized,
+                child: IgnorePointer(
+                  ignoring: fabAction == null,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, anim) => ScaleTransition(
+                      scale: anim,
+                      child: child,
+                    ),
+                    child: AppFab(
+                      key: ValueKey(fabIcon),
+                      icon: fabIcon ?? Icons.add_rounded,
+                      onPressed: fabAction ?? () {},
+                      onLongPress: fabLongPress,
+                    ),
+                  ),
+                ),
               ),
             ),
+          ),
 
           // ── Search bar (transactions tab only) ──
           if (currentTabId == 'transactions' && txSearchActive)

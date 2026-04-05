@@ -51,6 +51,62 @@ class PeopleService {
         .write(companion);
   }
 
+  /// Vincula (o desvincula) una persona local con un UID de Firebase.
+  Future<void> setLinkedUser(String personId, String? linkedUserId) async {
+    await (db.update(db.personsTable)..where((t) => t.id.equals(personId)))
+        .write(PersonsTableCompanion(
+          linkedUserId: drift.Value(linkedUserId),
+        ));
+  }
+
+  /// Crea una transacción local a partir de un gasto compartido entrante
+  /// (registrado por el amigo en Firestore). [iOwe] = true cuando el amigo
+  /// pagó todo y yo debo mi parte.
+  /// Devuelve el ID de la transacción creada.
+  Future<String> addSharedExpenseFromIncoming({
+    required String personId,
+    required String title,
+    required double totalAmount,
+    required double ownAmount,
+    required double otherAmount,
+    required DateTime date,
+    String? categoryId,
+    bool iOwe = true,
+  }) async {
+    final txId = const Uuid().v4();
+    await db.transaction(() async {
+      final person = await (db.select(db.personsTable)
+            ..where((t) => t.id.equals(personId)))
+          .getSingle();
+
+      // iOwe: el amigo pagó → yo le debo mi parte → balance baja
+      final balanceDelta = iOwe ? -ownAmount : otherAmount;
+      await (db.update(db.personsTable)..where((t) => t.id.equals(personId)))
+          .write(PersonsTableCompanion(
+        totalBalance: drift.Value(person.totalBalance + balanceDelta),
+      ));
+
+      await db.into(db.transactionsTable).insert(
+        TransactionsTableCompanion.insert(
+          id: txId,
+          title: title,
+          amount: ownAmount,
+          type: 'expense',
+          categoryId: categoryId ?? 'other_expense',
+          accountId: 'cash_ars',
+          date: date,
+          personId: drift.Value(personId),
+          isShared: const drift.Value(true),
+          sharedTotalAmount: drift.Value(totalAmount),
+          sharedOwnAmount: drift.Value(ownAmount),
+          sharedOtherAmount: drift.Value(otherAmount),
+          note: drift.Value('[compartido_entrante]'),
+        ),
+      );
+    });
+    return txId;
+  }
+
   Future<void> deletePerson(String personId) async {
     // Remove from all groups
     await (db.delete(db.groupMembersTable)

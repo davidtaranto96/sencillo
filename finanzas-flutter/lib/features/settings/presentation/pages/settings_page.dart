@@ -14,6 +14,7 @@ import '../../../../core/logic/ai_transaction_parser.dart';
 import '../../../../core/logic/user_profile_service.dart';
 import '../../../../core/providers/tab_config_provider.dart';
 import '../../../../core/providers/alerts_provider.dart';
+import '../../../../core/providers/onboarding_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -63,6 +64,22 @@ class SettingsPage extends ConsumerWidget {
             subtitle: 'Peso Argentino (ARS)',
             color: AppTheme.colorIncome,
             onTap: () {},
+          ),
+          _SettingsTile(
+            icon: Icons.play_circle_outline_rounded,
+            title: 'Restablecer tutorial',
+            subtitle: 'Volver a ver el onboarding desde el inicio',
+            color: const Color(0xFF6C63FF),
+            onTap: () async {
+              await ref.read(onboardingProvider).reset();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tutorial restablecido. Se mostrará al reiniciar la app.'),
+                  ),
+                );
+              }
+            },
           ),
 
           const SizedBox(height: 24),
@@ -267,6 +284,7 @@ class SettingsPage extends ConsumerWidget {
     await db.delete(db.wishlistTable).go();
     await db.delete(db.userProfileTable).go();
     await ref.read(dismissedAlertsProvider.notifier).clearAll();
+    await ref.read(onboardingProvider).reset();
     await db.ensureDefaultCashAccount();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

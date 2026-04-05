@@ -14,6 +14,8 @@ import '../widgets/balance_hero_card.dart';
 import '../widgets/card_alert_banner.dart';
 import '../widgets/accounts_row.dart';
 import '../widgets/recent_transactions_list.dart';
+import '../widgets/currency_rates_card.dart';
+export '../widgets/currency_rates_card.dart' show currencyAutoRefreshProvider;
 // AddTransactionFab moved to AppShell as MorphingFab
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
 import '../../../../core/providers/account_order_provider.dart';
@@ -61,6 +63,8 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
     final totalSavedInGoals = goals.fold(0.0, (sum, g) => sum + g.savedAmount);
     final syncStatus = ref.watch(_syncTimerProvider);
     final isSyncing = syncStatus.isLoading;
+    // Activar auto-refresh de cotizaciones cada 15 min
+    ref.watch(currencyAutoRefreshProvider);
     
     return accountsAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -245,6 +249,8 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
                             const SizedBox(height: 12),
                             if (userProfile?.payDay != null)
                               _PaydayCountdown(profile: userProfile!),
+                            const SizedBox(height: 12),
+                            const CurrencyRatesCard(),
                             const SizedBox(height: 12),
                             const _AlertsSection(),
                             

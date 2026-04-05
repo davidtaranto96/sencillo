@@ -4,9 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../../../core/logic/people_service.dart';
+import '../../../../core/providers/friend_requests_provider.dart';
+import '../../../../core/providers/incoming_expenses_provider.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../domain/models/person.dart';
 import '../../domain/models/group.dart';
 import '../../../../core/utils/format_utils.dart';
@@ -69,6 +74,9 @@ class _PeoplePageState extends ConsumerState<PeoplePage>
           children: [
             // ── Header ──
             _Header(globalBalance: globalBalance, showBack: widget.standalone),
+
+            // ── Social banners ──
+            _SocialBanners(),
 
             // ── Tabs ──
             Container(
@@ -659,6 +667,209 @@ void _showLiquidateAmountSheet(BuildContext context, WidgetRef ref, Person perso
       ),
     );
   }
+
+// ─── Social Banners (solicitudes + gastos entrantes) ──
+
+class _SocialBanners extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final requestCount = ref.watch(friendRequestCountProvider).valueOrNull ?? 0;
+    final incomingExpenses = ref.watch(incomingSharedExpensesProvider).valueOrNull ?? [];
+
+    if (requestCount == 0 && incomingExpenses.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        children: [
+          // ── Solicitudes de amistad pendientes ──
+          if (requestCount > 0)
+            GestureDetector(
+              onTap: () => context.push('/friend-requests'),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6C63FF).withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$requestCount',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF9B96FF)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        requestCount == 1
+                            ? '1 solicitud de amistad pendiente'
+                            : '$requestCount solicitudes de amistad',
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF9B96FF)),
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF9B96FF)),
+                  ],
+                ),
+              ),
+            ),
+
+          // ── Gastos compartidos entrantes ──
+          ...incomingExpenses.map((exp) => _IncomingExpenseBanner(expense: exp)),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomingExpenseBanner extends ConsumerStatefulWidget {
+  final IncomingSharedExpense expense;
+  const _IncomingExpenseBanner({required this.expense});
+
+  @override
+  ConsumerState<_IncomingExpenseBanner> createState() => _IncomingExpenseBannerState();
+}
+
+class _IncomingExpenseBannerState extends ConsumerState<_IncomingExpenseBanner> {
+  bool _loading = false;
+
+  Future<void> _accept() async {
+    setState(() => _loading = true);
+    try {
+      final peopleService = ref.read(peopleServiceProvider);
+
+      // Buscar/crear persona localmente
+      final people = ref.read(peopleStreamProvider).valueOrNull ?? [];
+      String personId;
+      final match = people.where((p) => p.linkedUserId == widget.expense.createdByUid).toList();
+
+      if (match.isNotEmpty) {
+        personId = match.first.id;
+      } else {
+        // Crear persona nueva si no existe
+        personId = await peopleService.addPerson(name: 'Amigo');
+        await peopleService.setLinkedUser(personId, widget.expense.createdByUid);
+      }
+
+      // Crear transacción local de gasto compartido
+      final localTxId = await peopleService.addSharedExpenseFromIncoming(
+        personId: personId,
+        title: widget.expense.title,
+        totalAmount: widget.expense.totalAmount,
+        ownAmount: widget.expense.myAmount,
+        otherAmount: widget.expense.totalAmount - widget.expense.myAmount,
+        date: widget.expense.date,
+        categoryId: widget.expense.category,
+        iOwe: true, // el amigo pagó, yo debo mi parte
+      );
+
+      // Actualizar Firestore
+      final firestoreService = ref.read(firestoreServiceProvider);
+      await firestoreService.acceptSharedExpense(widget.expense.docId, localTxId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gasto "${widget.expense.title}" aceptado')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al aceptar el gasto')),
+        );
+      }
+    }
+  }
+
+  Future<void> _decline() async {
+    final firestoreService = ref.read(firestoreServiceProvider);
+    await firestoreService.declineSharedExpense(widget.expense.docId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final exp = widget.expense;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.colorTransfer.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.colorTransfer.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('💸', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Gasto compartido: ${exp.title}',
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ),
+              Text(
+                formatAmount(exp.myAmount),
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.colorTransfer),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tu parte: ${formatAmount(exp.myAmount)} de ${formatAmount(exp.totalAmount)} total',
+            style: GoogleFonts.inter(fontSize: 11, color: Colors.white38),
+          ),
+          const SizedBox(height: 10),
+          if (_loading)
+            const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: _decline,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('Ignorar', style: GoogleFonts.inter(fontSize: 12, color: Colors.redAccent, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _accept,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppTheme.colorTransfer.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('Aceptar', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.colorTransfer, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 // ─── Header ──────────────────────────────────────────
 

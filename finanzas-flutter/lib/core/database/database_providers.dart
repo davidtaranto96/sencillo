@@ -44,7 +44,7 @@ final accountsStreamProvider = StreamProvider<List<dom.Account>>((ref) {
 
         double currentBalance = e.initialBalance;
         for (final tx in txs) {
-          if (tx.note != null && tx.note!.contains('[retroactivo]')) continue;
+          if (tx.note != null && (tx.note!.contains('[retroactivo]') || tx.note!.contains('mp_sync:'))) continue;
 
           if (tx.type == dom_tx.TransactionType.income.name) {
             currentBalance += tx.amount;

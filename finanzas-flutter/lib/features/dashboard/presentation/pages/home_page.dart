@@ -15,6 +15,7 @@ import '../widgets/card_alert_banner.dart';
 import '../widgets/accounts_row.dart';
 import '../widgets/recent_transactions_list.dart';
 import '../widgets/currency_rates_card.dart';
+import '../widgets/mp_home_card.dart';
 export '../widgets/currency_rates_card.dart' show currencyAutoRefreshProvider;
 // AddTransactionFab moved to AppShell as MorphingFab
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
@@ -298,6 +299,8 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
                             ),
                             const SizedBox(height: 8),
                             AccountsRow(accounts: _sortByCustomOrder(accounts, ref.watch(accountOrderProvider))),
+                            const SizedBox(height: 16),
+                            const MpHomeCard(),
                             const SizedBox(height: 20),
 
                             _SectionHeader(

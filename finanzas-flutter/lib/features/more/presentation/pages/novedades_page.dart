@@ -21,11 +21,42 @@ class NovedadesPage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
+          // v1.5.1
+          _VersionCard(
+            version: 'v1.5.1',
+            date: '5 Abr 2026',
+            isCurrent: true,
+            items: const [
+              _ChangeItem(icon: Icons.view_list_rounded, text: 'Pantalla de movimientos rediseñada: más clara, fácil de leer y de navegar', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.bar_chart_rounded, text: 'Nuevo resumen con columnas Ingresos / Gastos / Balance bien separadas y coloreadas', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.calendar_month_rounded, text: 'Filtro de meses mejorado: nombres completos y selección por pastilla', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.tune_rounded, text: 'Filtros por tipo (Todos / Ingresos / Gastos / Compartidos) como control segmentado', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.label_rounded, text: 'Categoría visible como badge de color en cada transacción', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.access_time_rounded, text: 'Hora del movimiento visible en cada transacción', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.today_rounded, text: 'Encabezados de día simplificados: solo la fecha, sin balance diario confuso', type: _ChangeType.improvement),
+            ],
+          ),
+
+          // v1.5.0
+          _VersionCard(
+            version: 'v1.5.0',
+            date: '5 Abr 2026',
+            isCurrent: false,
+            items: const [
+              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Integración con Mercado Pago: conectá tu cuenta con Access Token', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.sync_rounded, text: 'Sincronización automática: movimientos de MP se importan como transacciones reales', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.auto_awesome_rounded, text: 'Categorización con IA: tus movimientos se categorizan automáticamente con Claude', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.dashboard_rounded, text: 'Widget de Mercado Pago en el Home: saldo y últimos movimientos', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.account_balance_rounded, text: 'Cuenta Mercado Pago integrada: saldo sincronizado con reportes y presupuestos', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.schedule_rounded, text: 'Auto-sync al abrir la app con cooldown de 15 min', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.check_circle_rounded, text: 'Protección contra duplicados: doble capa con IDs y notas', type: _ChangeType.improvement),
+            ],
+          ),
+
           // v1.4.1
           _VersionCard(
             version: 'v1.4.1',
             date: '5 Abr 2026',
-            isCurrent: true,
             items: const [
               _ChangeItem(icon: Icons.sync_rounded, text: 'Gastos compartidos ahora se sincronizan con amigos vinculados por Firestore', type: _ChangeType.fix),
               _ChangeItem(icon: Icons.person_add_rounded, text: 'Aceptar solicitud de amistad crea la persona automáticamente si no existe', type: _ChangeType.fix),

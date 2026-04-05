@@ -21,6 +21,14 @@ String _monthShort(int month) {
   return month >= 1 && month <= 12 ? names[month] : '';
 }
 
+String _monthFull(int month) {
+  const names = [
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  return month >= 1 && month <= 12 ? names[month] : '';
+}
+
 const Map<String, String> _categoryLabels = {
   'food': 'Comida',
   'transport': 'Transporte',
@@ -28,7 +36,7 @@ const Map<String, String> _categoryLabels = {
   'entertainment': 'Entretenimiento',
   'shopping': 'Compras',
   'home': 'Hogar',
-  'education': 'Educacion',
+  'education': 'Educación',
   'services': 'Servicios',
   'salary': 'Sueldo',
   'freelance': 'Freelance',
@@ -41,7 +49,7 @@ const Map<String, String> _categoryLabels = {
   'cat_peer_to_peer': 'Entre personas',
   'cat_delivery': 'Delivery',
   'cat_subs': 'Suscripciones',
-  'cat_tecno': 'Tecnologia',
+  'cat_tecno': 'Tecnología',
   'cat_ropa': 'Ropa',
   'cat_hogar': 'Hogar',
   'cat_otros_gasto': 'Otros',
@@ -63,7 +71,6 @@ final txSelectedAccountProvider = StateProvider<String?>((ref) => null);
 // ═════════════════════════════════════════════════════════════
 class TransactionsPage extends ConsumerStatefulWidget {
   /// [standalone] = true when pushed above the shell (from Más).
-  /// Controls back button visibility in the SliverAppBar.
   final bool standalone;
   const TransactionsPage({super.key, this.standalone = false});
 
@@ -103,10 +110,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
                 t.date.year == selectedMonth.year).toList()
             : allTxs.toList();
 
-        // Stats for summary (current month always)
-        final currentMonthTxs = allTxs.where((t) =>
+        // Stats for summary — use selected month or current month
+        final displayTxs = selectedMonth != null ? baseTxs : allTxs.where((t) =>
             t.date.month == now.month && t.date.year == now.year).toList();
-        final displayTxs = selectedMonth != null ? baseTxs : currentMonthTxs;
         final totalIncome = displayTxs
             .where((t) => t.type == TransactionType.income || t.type == TransactionType.loanReceived)
             .fold(0.0, (sum, t) => sum + t.amount);
@@ -160,15 +166,15 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
         availableMonths.add(DateTime(now.year, now.month));
         final sortedMonths = availableMonths.toList()..sort((a, b) => b.compareTo(a));
 
-        // Active filter count for badge
-        final activeFilters = (selectedMonth != null ? 1 : 0) +
-            (selectedAccountId != null ? 1 : 0) +
-            (filterValue != TxFilterType.all ? 1 : 0);
+        // Summary month label
+        final summaryLabel = selectedMonth != null
+            ? '${_monthFull(selectedMonth.month)} ${selectedMonth.year}'
+            : '${_monthFull(now.month)} ${now.year}';
 
         return Scaffold(
           body: CustomScrollView(
             slivers: [
-              // ── App Bar with inline summary ──
+              // ── App Bar ──
               SliverAppBar(
                 pinned: true,
                 automaticallyImplyLeading: false,
@@ -179,15 +185,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
                             color: Colors.white54, size: 20),
                       )
                     : null,
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Movimientos',
-                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w800)),
-                  ],
-                ),
+                title: Text('Movimientos',
+                    style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w800)),
                 actions: [
-                  // Sort button
                   PopupMenuButton<_SortMode>(
                     icon: Icon(
                       Icons.swap_vert_rounded,
@@ -207,29 +207,32 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
                 ],
               ),
 
-              // ── Compact Summary Row ──
+              // ── Summary Card ──
               SliverToBoxAdapter(
-                child: _CompactSummary(
+                child: _SummaryCard(
                   income: totalIncome,
                   expense: totalExpense,
                   balance: balance,
+                  label: summaryLabel,
                   txCount: filtered.length,
-                  label: selectedMonth != null
-                      ? '${_monthShort(selectedMonth.month)} ${selectedMonth.year}'
-                      : _monthShort(now.month),
                 ),
               ),
 
-              // ── Filters: Month pills + Account + Type (all in one compact area) ──
+              // ── Month Filter ──
               SliverToBoxAdapter(
-                child: _AllFilters(
+                child: _MonthFilter(
                   months: sortedMonths,
                   selectedMonth: selectedMonth,
-                  onMonthSelect: (m) => ref.read(txSelectedMonthProvider.notifier).state = m,
+                  onSelect: (m) => ref.read(txSelectedMonthProvider.notifier).state = m,
+                ),
+              ),
+
+              // ── Type Tabs + Account Filter ──
+              SliverToBoxAdapter(
+                child: _TypeAndAccountFilter(
                   accounts: accounts,
                   selectedAccountId: selectedAccountId,
                   onAccountSelect: (id) => ref.read(txSelectedAccountProvider.notifier).state = id,
-                  activeFilters: activeFilters,
                 ),
               ),
 
@@ -242,49 +245,41 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
                     (context, groupIndex) {
                       final dateKey = grouped.keys.elementAt(groupIndex);
                       final txList = grouped[dateKey]!;
-                      final dayTotal = txList.fold<double>(0, (sum, tx) {
-                        if (tx.type == TransactionType.income || tx.type == TransactionType.loanReceived) return sum + tx.amount;
-                        return sum - tx.realExpense;
-                      });
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Day header — clean, no balance
                             Padding(
                               padding: EdgeInsets.only(
-                                top: groupIndex == 0 ? 4 : 14,
-                                bottom: 6,
+                                top: groupIndex == 0 ? 6 : 18,
+                                bottom: 8,
                               ),
                               child: Row(
                                 children: [
                                   Text(
                                     dateKey,
                                     style: GoogleFonts.inter(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: cs.onSurfaceVariant,
+                                      color: Colors.white38,
+                                      letterSpacing: 0.4,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    child: Container(height: 0.5, color: cs.outlineVariant.withValues(alpha: 0.25)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${dayTotal >= 0 ? '+' : ''}${formatAmount(dayTotal, compact: true)}',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: dayTotal >= 0 ? AppTheme.colorIncome : AppTheme.colorExpense,
+                                    child: Container(
+                                      height: 0.5,
+                                      color: Colors.white.withValues(alpha: 0.06),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             ...txList.map((tx) => Padding(
-                              padding: const EdgeInsets.only(bottom: 5),
+                              padding: const EdgeInsets.only(bottom: 6),
                               child: _TxCard(transaction: tx, accounts: accounts),
                             )),
                           ],
@@ -300,7 +295,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, i) => Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
+                        padding: const EdgeInsets.only(bottom: 6),
                         child: _TxCard(transaction: filtered[i], accounts: accounts),
                       ),
                       childCount: filtered.length,
@@ -334,34 +329,31 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
     final d = DateTime(date.year, date.month, date.day);
     final diff = today.difference(d).inDays;
 
-    if (d == today) return 'Hoy';
-    if (diff == 1) return 'Ayer';
+    if (d == today) return 'HOY';
+    if (diff == 1) return 'AYER';
     if (diff < 7 && diff > 0) {
       final weekday = DateFormat('EEEE', 'es').format(date);
-      return weekday[0].toUpperCase() + weekday.substring(1);
+      return weekday.toUpperCase();
     }
 
-    // Different month or older
     if (date.year == now.year) {
-      final weekday = DateFormat('EEE', 'es').format(date);
-      final cap = weekday[0].toUpperCase() + weekday.substring(1);
-      return '$cap ${date.day} ${_monthShort(date.month)}';
+      return '${date.day} ${_monthShort(date.month).toUpperCase()}';
     }
-    return DateFormat('d MMM yy', 'es').format(date);
+    return '${date.day} ${_monthShort(date.month).toUpperCase()} ${date.year}';
   }
 }
 
 // ═════════════════════════════════════════════════════════════
-// COMPACT SUMMARY (single row, minimal height)
+// SUMMARY CARD — clear 3-column layout
 // ═════════════════════════════════════════════════════════════
-class _CompactSummary extends StatelessWidget {
+class _SummaryCard extends StatelessWidget {
   final double income;
   final double expense;
   final double balance;
   final int txCount;
   final String label;
 
-  const _CompactSummary({
+  const _SummaryCard({
     required this.income,
     required this.expense,
     required this.balance,
@@ -372,52 +364,152 @@ class _CompactSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final balancePositive = balance >= 0;
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Month label
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
+          // Month + count header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white54,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$txCount mov.',
+                    style: GoogleFonts.inter(fontSize: 10, color: Colors.white30),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 6),
-          Text('$txCount', style: GoogleFonts.inter(fontSize: 10, color: Colors.white30)),
-          const Spacer(),
-          // Income
-          Icon(Icons.arrow_downward_rounded, size: 12, color: AppTheme.colorIncome.withValues(alpha: 0.7)),
-          const SizedBox(width: 2),
-          Text(
-            formatAmount(income, compact: true),
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.colorIncome),
+          // 3 columns: Ingresos / Gastos / Balance
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SummaryCol(
+                    label: 'Ingresos',
+                    amount: income,
+                    color: AppTheme.colorIncome,
+                    icon: Icons.arrow_downward_rounded,
+                  ),
+                ),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 0.5,
+                  color: cs.outlineVariant.withValues(alpha: 0.2),
+                ),
+                Expanded(
+                  child: _SummaryCol(
+                    label: 'Gastos',
+                    amount: expense,
+                    color: AppTheme.colorExpense,
+                    icon: Icons.arrow_upward_rounded,
+                  ),
+                ),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 0.5,
+                  color: cs.outlineVariant.withValues(alpha: 0.2),
+                ),
+                Expanded(
+                  child: _SummaryCol(
+                    label: 'Balance',
+                    amount: balance,
+                    color: balancePositive ? AppTheme.colorIncome : AppTheme.colorExpense,
+                    icon: balancePositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                    showSign: true,
+                  ),
+                ),
+              ],
+            ),
           ),
-          Container(width: 1, height: 12, margin: const EdgeInsets.symmetric(horizontal: 8), color: cs.outlineVariant.withValues(alpha: 0.3)),
-          // Expense
-          Icon(Icons.arrow_upward_rounded, size: 12, color: AppTheme.colorExpense.withValues(alpha: 0.7)),
-          const SizedBox(width: 2),
-          Text(
-            formatAmount(expense, compact: true),
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.colorExpense),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCol extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color color;
+  final IconData icon;
+  final bool showSign;
+
+  const _SummaryCol({
+    required this.label,
+    required this.amount,
+    required this.color,
+    required this.icon,
+    this.showSign = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final amountStr = showSign
+        ? '${amount >= 0 ? '+' : ''}${formatAmount(amount, compact: true)}'
+        : formatAmount(amount, compact: true);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, size: 12, color: color),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white38,
+                ),
+              ),
+            ],
           ),
-          Container(width: 1, height: 12, margin: const EdgeInsets.symmetric(horizontal: 8), color: cs.outlineVariant.withValues(alpha: 0.3)),
-          // Balance
+          const SizedBox(height: 5),
           Text(
-            '${balance >= 0 ? '+' : ''}${formatAmount(balance, compact: true)}',
+            amountStr,
             style: GoogleFonts.inter(
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: balance >= 0 ? AppTheme.colorIncome : AppTheme.colorExpense,
+              color: color,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -426,217 +518,90 @@ class _CompactSummary extends StatelessWidget {
 }
 
 // ═════════════════════════════════════════════════════════════
-// ALL FILTERS IN ONE COMPACT WIDGET
+// MONTH FILTER — horizontal scrollable pills
 // ═════════════════════════════════════════════════════════════
-class _AllFilters extends ConsumerWidget {
+class _MonthFilter extends StatelessWidget {
   final List<DateTime> months;
   final DateTime? selectedMonth;
-  final ValueChanged<DateTime?> onMonthSelect;
-  final List<dynamic> accounts;
-  final String? selectedAccountId;
-  final ValueChanged<String?> onAccountSelect;
-  final int activeFilters;
+  final ValueChanged<DateTime?> onSelect;
 
-  const _AllFilters({
+  const _MonthFilter({
     required this.months,
     required this.selectedMonth,
-    required this.onMonthSelect,
-    required this.accounts,
-    required this.selectedAccountId,
-    required this.onAccountSelect,
-    required this.activeFilters,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final filterType = ref.watch(txFilterProvider);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Row 1: Type filters + account chips (all inline)
-        SizedBox(
-          height: 32,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              // Type filters
-              ...TxFilterType.values.map((f) {
-                final selected = f == filterType;
-                final label = switch (f) {
-                  TxFilterType.all => 'Todos',
-                  TxFilterType.income => 'Ingresos',
-                  TxFilterType.expense => 'Gastos',
-                  TxFilterType.shared => 'Compartidos',
-                };
-                return Padding(
-                  padding: const EdgeInsets.only(right: 5),
-                  child: _ChipButton(
-                    label: label,
-                    selected: selected,
-                    color: Theme.of(context).colorScheme.primary,
-                    onTap: () => ref.read(txFilterProvider.notifier).state = f,
-                  ),
-                );
-              }),
-              // Divider
-              if (accounts.length > 1) ...[
-                Container(width: 1, height: 20, margin: const EdgeInsets.symmetric(horizontal: 4), color: Colors.white.withValues(alpha: 0.06)),
-                // Account chips
-                ...accounts.map((acc) {
-                  final isSelected = acc.id == selectedAccountId;
-                  final accColor = acc.isCreditCard ? AppTheme.colorWarning : AppTheme.colorIncome;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: _ChipButton(
-                      label: acc.name,
-                      selected: isSelected,
-                      color: accColor,
-                      icon: acc.isCreditCard ? Icons.credit_card_rounded : Icons.account_balance_rounded,
-                      onTap: () => onAccountSelect(isSelected ? null : acc.id),
-                    ),
-                  );
-                }),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 5),
-        // Row 2: Month pills (compact)
-        SizedBox(
-          height: 28,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: months.length + 1, // +1 for "Todos"
-            itemBuilder: (context, i) {
-              if (i == 0) {
-                final isAll = selectedMonth == null;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: GestureDetector(
-                    onTap: () => onMonthSelect(null),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: isAll
-                            ? AppTheme.colorTransfer.withValues(alpha: 0.15)
-                            : Colors.white.withValues(alpha: 0.02),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isAll
-                              ? AppTheme.colorTransfer.withValues(alpha: 0.4)
-                              : Colors.white.withValues(alpha: 0.05),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Todo',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: isAll ? FontWeight.w700 : FontWeight.w400,
-                            color: isAll ? Colors.white : Colors.white38,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }
-              final m = months[i - 1];
-              final now = DateTime.now();
-              final isSelected = selectedMonth != null &&
-                  m.year == selectedMonth!.year && m.month == selectedMonth!.month;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: GestureDetector(
-                  onTap: () => onMonthSelect(isSelected ? null : m),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppTheme.colorTransfer.withValues(alpha: 0.15)
-                          : Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppTheme.colorTransfer.withValues(alpha: 0.4)
-                            : Colors.white.withValues(alpha: 0.05),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        m.year == now.year
-                            ? _monthShort(m.month)
-                            : '${_monthShort(m.month)} ${m.year % 100}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                          color: isSelected ? Colors.white : Colors.white38,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 4),
-      ],
-    );
-  }
-}
-
-class _ChipButton extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color color;
-  final IconData? icon;
-  final VoidCallback onTap;
-
-  const _ChipButton({
-    required this.label,
-    required this.selected,
-    required this.color,
-    this.icon,
-    required this.onTap,
+    required this.onSelect,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.02),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected ? color.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.05),
+    final now = DateTime.now();
+    return SizedBox(
+      height: 38,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: months.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            final isAll = selectedMonth == null;
+            return _MonthPill(
+              label: 'Todo',
+              selected: isAll,
+              onTap: () => onSelect(null),
+            );
+          }
+          final m = months[i - 1];
+          final isSelected = selectedMonth != null &&
+              m.year == selectedMonth!.year && m.month == selectedMonth!.month;
+          final label = m.year == now.year
+              ? _monthFull(m.month)
+              : '${_monthShort(m.month)} ${m.year % 100}';
+
+          return _MonthPill(
+            label: label,
+            selected: isSelected,
+            onTap: () => onSelect(isSelected ? null : m),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MonthPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MonthPill({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xFF6C63FF);
+    return Padding(
+      padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: selected ? accent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? accent.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.07),
+              width: selected ? 1.2 : 0.8,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 11, color: selected ? color : Colors.white24),
-              const SizedBox(width: 4),
-            ],
-            Text(
+          child: Center(
+            child: Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                color: selected ? color : Colors.white38,
+                color: selected ? Colors.white : Colors.white38,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -644,7 +609,134 @@ class _ChipButton extends StatelessWidget {
 }
 
 // ═════════════════════════════════════════════════════════════
-// TRANSACTION CARD
+// TYPE TABS + ACCOUNT FILTER
+// ═════════════════════════════════════════════════════════════
+class _TypeAndAccountFilter extends ConsumerWidget {
+  final List<dynamic> accounts;
+  final String? selectedAccountId;
+  final ValueChanged<String?> onAccountSelect;
+
+  const _TypeAndAccountFilter({
+    required this.accounts,
+    required this.selectedAccountId,
+    required this.onAccountSelect,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filterType = ref.watch(txFilterProvider);
+    final cs = Theme.of(context).colorScheme;
+
+    final types = [
+      (TxFilterType.all, 'Todos', null),
+      (TxFilterType.income, 'Ingresos', AppTheme.colorIncome),
+      (TxFilterType.expense, 'Gastos', AppTheme.colorExpense),
+      (TxFilterType.shared, 'Compartidos', AppTheme.colorWarning),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Type tabs
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          child: Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: Row(
+              children: types.map((t) {
+                final isSelected = t.$1 == filterType;
+                final color = t.$3 ?? cs.primary;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => ref.read(txFilterProvider.notifier).state = t.$1,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        t.$2,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                          color: isSelected ? (t.$3 ?? Colors.white) : Colors.white38,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+
+        // Account chips (only if multiple)
+        if (accounts.length > 1) ...[
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 30,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: accounts.map((acc) {
+                final isSelected = acc.id == selectedAccountId;
+                final accColor = acc.isCreditCard ? AppTheme.colorWarning : AppTheme.colorTransfer;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => onAccountSelect(isSelected ? null : acc.id),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected ? accColor.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.02),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? accColor.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.05),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            acc.isCreditCard ? Icons.credit_card_rounded : Icons.account_balance_rounded,
+                            size: 10,
+                            color: isSelected ? accColor : Colors.white24,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            acc.name,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                              color: isSelected ? accColor : Colors.white30,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════
+// TRANSACTION CARD — redesigned with clear category display
 // ═════════════════════════════════════════════════════════════
 class _TxCard extends ConsumerWidget {
   final Transaction transaction;
@@ -658,13 +750,16 @@ class _TxCard extends ConsumerWidget {
     final isIncome = tx.type == TransactionType.income || tx.type == TransactionType.loanReceived;
     final color = colorForType(tx.type);
     final emoji = kCategoryEmojis[tx.categoryId] ?? _emojiForType(tx.type);
-    // For shared expenses show the TOTAL paid — the person owes you back their portion
+    final catLabel = _catLabel(tx.categoryId);
     final displayAmount = tx.isShared
         ? (tx.sharedTotalAmount ?? tx.amount)
         : tx.amount;
 
     final account = accounts.cast<dynamic>().where((a) => a.id == tx.accountId).firstOrNull;
     final accountName = account?.name ?? '';
+
+    // Time string
+    final timeStr = DateFormat('HH:mm').format(tx.date);
 
     return Dismissible(
       key: Key(tx.id),
@@ -691,60 +786,75 @@ class _TxCard extends ConsumerWidget {
           decoration: BoxDecoration(
             color: cs.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
-              // Emoji
+              // Category emoji icon
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
-                child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 11),
               // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title
                     Text(
                       tx.title,
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
+                    // Category + account as clear labels
                     Row(
                       children: [
-                        if (accountName.isNotEmpty) ...[
-                          Icon(
-                            account?.isCreditCard == true ? Icons.credit_card_rounded : Icons.account_balance_rounded,
-                            size: 9, color: Colors.white24,
+                        // Category pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          const SizedBox(width: 2),
-                          Flexible(
-                            child: Text(accountName,
-                              style: GoogleFonts.inter(fontSize: 10, color: Colors.white30),
-                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                          child: Text(
+                            catLabel,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: color.withValues(alpha: 0.85),
                             ),
                           ),
-                          Text(' · ', style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.15))),
-                        ],
-                        Text(
-                          _catLabel(tx.categoryId),
-                          style: GoogleFonts.inter(fontSize: 10, color: Colors.white30),
                         ),
+                        if (accountName.isNotEmpty) ...[
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              accountName,
+                              style: GoogleFonts.inter(fontSize: 10, color: Colors.white24),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     // Tags
                     if (tx.isRetroactive || tx.isShared || tx.isExtraordinary)
                       Padding(
-                        padding: const EdgeInsets.only(top: 3),
+                        padding: const EdgeInsets.only(top: 4),
                         child: Wrap(
                           spacing: 4,
                           children: [
@@ -757,19 +867,31 @@ class _TxCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
-              // Amount
+              const SizedBox(width: 8),
+              // Amount + time
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     '${isIncome ? '+' : '-'}${formatAmount(displayAmount)}',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: color),
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    timeStr,
+                    style: GoogleFonts.inter(fontSize: 10, color: Colors.white24),
                   ),
                   if (tx.isShared && (tx.sharedOtherAmount ?? 0) > 0)
-                    Text(
-                      'Prestado: ${formatAmount(tx.sharedOtherAmount!, compact: true)}',
-                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.colorWarning),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        'Prestado: ${formatAmount(tx.sharedOtherAmount!, compact: true)}',
+                        style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.colorWarning),
+                      ),
                     ),
                 ],
               ),
@@ -807,7 +929,7 @@ class _TxCard extends ConsumerWidget {
           ],
         ),
         content: Text(
-          '"${tx.title}" por ${formatAmount(tx.amount)}\n\nEl saldo se restaurara.',
+          '"${tx.title}" por ${formatAmount(tx.amount)}\n\nEl saldo se restaurará.',
           style: const TextStyle(color: Colors.white70, fontSize: 13),
         ),
         actions: [
@@ -989,7 +1111,7 @@ class _TxCard extends ConsumerWidget {
                           controller: titleCtrl,
                           style: const TextStyle(color: Colors.white, fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Descripcion',
+                            hintText: 'Descripción',
                             hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
                             prefixIcon: Icon(Icons.short_text_rounded, color: Colors.white.withValues(alpha: 0.3), size: 18),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1083,7 +1205,7 @@ class _TxCard extends ConsumerWidget {
                         const SizedBox(height: 12),
 
                         // Category
-                        Text('Categoria', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11, fontWeight: FontWeight.w600)),
+                        Text('Categoría', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
                         SizedBox(
                           height: 34,
@@ -1262,14 +1384,17 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long_outlined, size: 48, color: cs.outlineVariant),
-          const SizedBox(height: 12),
+          Icon(Icons.receipt_long_outlined, size: 52, color: cs.outlineVariant),
+          const SizedBox(height: 14),
           Text(
             'Sin movimientos',
-            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant),
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant),
           ),
-          const SizedBox(height: 4),
-          Text('No hay transacciones con estos filtros', style: GoogleFonts.inter(fontSize: 11, color: Colors.white30)),
+          const SizedBox(height: 6),
+          Text(
+            'No hay transacciones con estos filtros',
+            style: GoogleFonts.inter(fontSize: 12, color: Colors.white30),
+          ),
         ],
       ),
     );

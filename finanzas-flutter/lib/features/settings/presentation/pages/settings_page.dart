@@ -19,6 +19,7 @@ import '../../../../core/providers/feedback_provider.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
+import '../../../../core/providers/mercado_pago_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -154,6 +155,7 @@ class SettingsPage extends ConsumerWidget {
             color: AppTheme.colorTransfer,
             onTap: () => context.push('/accounts'),
           ),
+          _MercadoPagoTile(),
 
           const SizedBox(height: 24),
           _SectionTitle('Compras Inteligentes'),
@@ -1286,6 +1288,83 @@ class _ApiKeyTileState extends State<_ApiKeyTile> {
 // ─────────────────────────────────────────────────────
 // Shared Widgets
 // ─────────────────────────────────────────────────────
+class _MercadoPagoTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isConnected = ref.watch(mpConnectedProvider);
+    final connected = isConnected.valueOrNull ?? false;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: GestureDetector(
+        onTap: () => context.push('/mercado-pago'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF009EE3).withValues(alpha: 0.12),
+                const Color(0xFF009EE3).withValues(alpha: 0.04),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: const Color(0xFF009EE3).withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF009EE3).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.account_balance_rounded,
+                    color: Color(0xFF009EE3), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      connected ? 'Mercado Pago conectado' : 'Conectar Mercado Pago',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      connected
+                          ? 'Ver saldo y movimientos'
+                          : 'Sincronizá tu saldo y gastos',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                connected
+                    ? Icons.check_circle_rounded
+                    : Icons.arrow_forward_ios_rounded,
+                color: connected
+                    ? const Color(0xFF5ECFB1)
+                    : const Color(0xFF009EE3),
+                size: connected ? 22 : 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionTitle extends StatelessWidget {
   final String title;
   final Color? color;

@@ -8,6 +8,7 @@ import '../../core/database/database_providers.dart';
 import '../../core/providers/shell_providers.dart';
 import '../../core/providers/tab_config_provider.dart';
 import '../../core/providers/feedback_provider.dart';
+import '../../core/providers/mercado_pago_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/dashboard/presentation/pages/home_page.dart';
 import '../../features/transactions/presentation/pages/transactions_page.dart';
@@ -62,10 +63,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
-    // Schedule notifications on app start + check for in-app alerts
+    // Schedule notifications on app start + check for in-app alerts + MP auto-sync
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationServiceProvider).refreshAll(ref);
       _checkInAppAlerts();
+      _tryAutoSyncMercadoPago();
     });
   }
 
@@ -112,6 +114,16 @@ class _AppShellState extends ConsumerState<AppShell> {
           relatedId: p.id,
         ));
       }
+    }
+  }
+
+  /// Silent MP auto-sync on app open (15-min cooldown, won't interrupt user)
+  Future<void> _tryAutoSyncMercadoPago() async {
+    try {
+      final db = ref.read(databaseProvider);
+      await autoSyncMercadoPago(db);
+    } catch (_) {
+      // Silencioso — no interrumpir al usuario
     }
   }
 

@@ -21,6 +21,7 @@ import '../../features/transactions/presentation/pages/transaction_detail_page.d
 import '../../features/goals/presentation/pages/savings_page.dart';
 import '../../features/more/presentation/pages/novedades_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/settings/presentation/pages/mercado_pago_page.dart';
 import '../shell/app_shell.dart';
 import '../providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
@@ -117,6 +118,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/accounts',
         builder: (context, state) => const AccountsPage(standalone: true),
+      ),
+      GoRoute(
+        path: '/mercado-pago',
+        builder: (context, state) => const MercadoPagoPage(),
       ),
       GoRoute(
         path: '/accounts/:accountId',

@@ -12,3 +12,9 @@ final pendingFriendRequestsProvider = StreamProvider<List<FriendRequest>>((ref) 
   final service = ref.watch(firestoreServiceProvider);
   return service.watchPendingRequests();
 });
+
+/// Stream de solicitudes de amistad enviadas por mí (pendientes)
+final sentFriendRequestsProvider = StreamProvider<List<FriendRequest>>((ref) {
+  final service = ref.watch(firestoreServiceProvider);
+  return service.watchSentRequests();
+});

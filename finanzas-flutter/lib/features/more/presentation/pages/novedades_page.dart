@@ -21,11 +21,25 @@ class NovedadesPage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
+          // v1.5.2
+          _VersionCard(
+            version: 'v1.5.2',
+            date: '5 Abr 2026',
+            isCurrent: true,
+            items: const [
+              _ChangeItem(icon: Icons.bug_report_rounded, text: 'Fix: vincular amigo ya no falla si no tenés personas en tu lista', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.keyboard_rounded, text: 'Nuevo: ingreso manual de código de amigo como alternativa al QR', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.send_rounded, text: 'Nueva pestaña "Enviadas" en Solicitudes para ver qué solicitudes mandaste', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.cancel_rounded, text: 'Podés cancelar solicitudes enviadas desde la misma pantalla', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.error_outline_rounded, text: 'Mensajes de error más claros al vincular amigos (sin conexión, usuario no encontrado, etc.)', type: _ChangeType.improvement),
+            ],
+          ),
+
           // v1.5.1
           _VersionCard(
             version: 'v1.5.1',
             date: '5 Abr 2026',
-            isCurrent: true,
+            isCurrent: false,
             items: const [
               _ChangeItem(icon: Icons.view_list_rounded, text: 'Pantalla de movimientos rediseñada: más clara, fácil de leer y de navegar', type: _ChangeType.improvement),
               _ChangeItem(icon: Icons.bar_chart_rounded, text: 'Nuevo resumen con columnas Ingresos / Gastos / Balance bien separadas y coloreadas', type: _ChangeType.improvement),

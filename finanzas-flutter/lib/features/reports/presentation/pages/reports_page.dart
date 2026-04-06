@@ -253,7 +253,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Reportes',
+          'Análisis',
           style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         centerTitle: true,

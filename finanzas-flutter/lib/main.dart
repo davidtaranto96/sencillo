@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,26 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar AudioPlayer global con contexto de notificación/UI
+  // (Necesario en Android para que los sonidos cortos de UI funcionen)
+  try {
+    await AudioPlayer.global.setAudioContext(AudioContext(
+      android: AudioContextAndroid(
+        contentType: AndroidContentType.sonification,
+        usageType: AndroidUsageType.notificationEvent,
+        audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+        isSpeakerphoneOn: false,
+        stayAwake: false,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.ambient,
+        options: {AVAudioSessionOptions.mixWithOthers},
+      ),
+    ));
+  } catch (_) {
+    // Silencioso — el sonido es decorativo
+  }
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

@@ -930,7 +930,7 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
               ],
-              Text('Personas',
+              Text('Amigos',
                   style: GoogleFonts.inter(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,

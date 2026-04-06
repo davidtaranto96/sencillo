@@ -76,20 +76,26 @@ void appSound(WidgetRef ref, {SoundType type = SoundType.tap}) {
   _playSound(type);
 }
 
-// ── Shared audio player (reused) ──
-final AudioPlayer _audioPlayer = AudioPlayer();
+// ── Shared audio player (reused, con ReleaseMode.stop para sonidos cortos de UI) ──
+final AudioPlayer _audioPlayer = AudioPlayer()..setReleaseMode(ReleaseMode.stop);
 
-void _playSound(SoundType type) {
-  final String asset;
-  switch (type) {
-    case SoundType.nav:
-      asset = 'sounds/nav.wav';
-    case SoundType.tap:
-      asset = 'sounds/tap.wav';
-    case SoundType.success:
-      asset = 'sounds/success.wav';
+void _playSound(SoundType type) async {
+  try {
+    final String asset;
+    switch (type) {
+      case SoundType.nav:
+        asset = 'sounds/nav.wav';
+      case SoundType.tap:
+        asset = 'sounds/tap.wav';
+      case SoundType.success:
+        asset = 'sounds/success.wav';
+    }
+    // Parar primero asegura reproducción inmediata en Android
+    await _audioPlayer.stop();
+    await _audioPlayer.play(AssetSource(asset), volume: 0.45);
+  } catch (_) {
+    // Silencioso — el sonido es decorativo, no debe crashear la app
   }
-  _audioPlayer.play(AssetSource(asset), volume: 0.5);
 }
 
 /// Internal haptic executor

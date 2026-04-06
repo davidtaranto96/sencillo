@@ -118,19 +118,19 @@ class _MorePageState extends ConsumerState<MorePage>
                   ),
                   _QuickTool(
                     icon: Icons.people_rounded,
-                    label: 'Personas',
+                    label: 'Amigos',
                     color: AppTheme.colorIncome,
                     onTap: () => context.push('/people'),
                   ),
                   _QuickTool(
                     icon: Icons.shopping_cart_rounded,
-                    label: 'Wishlist',
+                    label: 'Antojos',
                     color: AppTheme.colorWarning,
                     onTap: () => context.push('/wishlist'),
                   ),
                   _QuickTool(
                     icon: Icons.bar_chart_rounded,
-                    label: 'Reportes',
+                    label: 'Análisis',
                     color: AppTheme.colorExpense,
                     onTap: () => context.push('/reports'),
                   ),
@@ -203,7 +203,7 @@ class _MorePageState extends ConsumerState<MorePage>
                       _CompactRow(
                         icon: Icons.rocket_launch_rounded,
                         label: 'Novedades',
-                        subtitle: 'Versión actual: v1.5.4',
+                        subtitle: 'Versión actual: v1.5.5',
                         color: AppTheme.colorIncome,
                         onTap: () => context.push('/novedades'),
                       ),
@@ -340,7 +340,7 @@ class _MorePageState extends ConsumerState<MorePage>
                   child: GestureDetector(
                     onTap: () => context.push('/novedades'),
                     child: Text(
-                      'Sencillo · v1.5.4',
+                      'Sencillo · v1.5.5',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,

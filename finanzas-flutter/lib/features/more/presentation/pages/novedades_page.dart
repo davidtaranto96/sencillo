@@ -25,16 +25,30 @@ class NovedadesPage extends StatelessWidget {
           _CurrentVersionBanner(),
           const SizedBox(height: 20),
 
+          // v1.5.5
+          _VersionCard(
+            version: 'v1.5.5',
+            date: '6 Abr 2026',
+            isCurrent: true,
+            items: const [
+              _ChangeItem(icon: Icons.people_alt_rounded, text: '"Personas" ahora se llama Amigos, "Objetivos" → Metas, "Wishlist" → Antojos, "Reportes" → Análisis', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.notifications_rounded, text: 'Badge rojo en la nav bar cuando hay solicitudes de amistad pendientes o alertas sin leer', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.vibration_rounded, text: 'Fix: vibración (haptic) ahora funciona correctamente en Android', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.volume_up_rounded, text: 'Fix: efectos de sonido de la app ahora se reproducen correctamente en Android', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.speed_rounded, text: 'Optimización: la app reconstruye menos partes de la UI innecesariamente, mejorando la fluidez', type: _ChangeType.improvement),
+            ],
+          ),
+
           // v1.5.4
           _VersionCard(
             version: 'v1.5.4',
             date: '6 Abr 2026',
-            isCurrent: true,
+            isCurrent: false,
             items: const [
               _ChangeItem(icon: Icons.auto_awesome_rounded, text: 'IA mejorada: ahora entendé comandos de amigos, gastos compartidos, deudas y navegación a personas', type: _ChangeType.improvement),
               _ChangeItem(icon: Icons.qr_code_scanner_rounded, text: 'Comando "Agregar amigo por QR" desde la IA abre directo el escáner', type: _ChangeType.feature),
               _ChangeItem(icon: Icons.mark_email_read_rounded, text: 'Comando "Ver solicitudes" desde la IA abre la pantalla de solicitudes de amistad', type: _ChangeType.feature),
-              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Comando "Cuánto le debo a Juan" responde con el balance exacto y navega a Personas', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Comando "Cuánto le debo a Juan" responde con el balance exacto y navega a Amigos', type: _ChangeType.feature),
               _ChangeItem(icon: Icons.psychology_rounded, text: 'Predicciones inteligentes: si escribís un nombre de persona se sugieren acciones relevantes con ella', type: _ChangeType.improvement),
               _ChangeItem(icon: Icons.lightbulb_rounded, text: 'Más ejemplos rápidos: Saldar deuda, Ver solicitudes, Mis amigos, entre otros', type: _ChangeType.improvement),
             ],
@@ -550,7 +564,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                         border: Border.all(color: AppTheme.colorTransfer.withValues(alpha: 0.35)),
                       ),
                       child: Text(
-                        'v1.5.4',
+                        'v1.5.5',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -563,7 +577,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Versión actual · 6 de Abril 2026',
+                  'Versión actual · 6 de Abril 2026 · build 7',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Colors.white38,

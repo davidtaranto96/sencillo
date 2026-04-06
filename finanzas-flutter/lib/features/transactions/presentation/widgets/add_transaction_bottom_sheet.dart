@@ -1680,7 +1680,7 @@ class _AiConfirmationCardState extends ConsumerState<_AiConfirmationCard> {
       case NLScenario.navigateTo:
         final tabNames = {
           'home': 'Inicio', 'transactions': 'Movimientos', 'budget': 'Presupuesto',
-          'goals': 'Objetivos', 'people': 'Personas', 'reports': 'Reportes',
+          'goals': 'Metas', 'people': 'Amigos', 'reports': 'Análisis',
           'accounts': 'Cuentas', 'monthly_overview': 'Resumen mensual',
           'wishlist': 'Lista de compras', 'savings': 'Ahorros',
           'link_friend': 'Vincular amigo por QR',

@@ -4,6 +4,8 @@
         android:maxSdkVersion="32" />
     <!-- file_picker: Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- vibración / haptic feedback -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- speech_to_text: micrófono -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Notifications -->

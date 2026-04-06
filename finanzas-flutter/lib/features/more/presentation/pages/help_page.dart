@@ -98,23 +98,23 @@ class _HelpModalState extends State<_HelpModal> {
     ),
     _Section(
       emoji: '👥',
-      title: 'Personas',
+      title: 'Amigos',
       color: Color(0xFFFF8C69),
       items: [
-        _Item('Deudas y préstamos', 'La sección Personas muestra el balance neto con cada contacto: positivo = te deben, negativo = les debés.'),
-        _Item('Historial', 'Tocá una persona para ver todos los movimientos compartidos y el detalle de cada transacción.'),
-        _Item('Saldar deuda', 'Desde el perfil de la persona podés registrar un pago parcial o total para actualizar el balance.'),
-        _Item('Agregar persona', 'Usá el botón + en Personas o dictale a la IA "Agregar a [nombre] como contacto".'),
+        _Item('Deudas y préstamos', 'La sección Amigos muestra el balance neto con cada contacto: positivo = te deben, negativo = les debés.'),
+        _Item('Historial', 'Tocá un amigo para ver todos los movimientos compartidos y el detalle de cada transacción.'),
+        _Item('Saldar deuda', 'Desde el perfil del amigo podés registrar un pago parcial o total para actualizar el balance.'),
+        _Item('Agregar amigo', 'Usá el botón + en Amigos o dictale a la IA "Agregar a [nombre] como contacto".'),
       ],
     ),
     _Section(
       emoji: '📊',
-      title: 'Reportes',
+      title: 'Análisis',
       color: Color(0xFF9B59B6),
       items: [
         _Item('Gráfico de gastos', 'El gráfico de dona muestra cómo se distribuyen tus gastos por categoría en el período seleccionado.'),
-        _Item('Comparativa mensual', 'El reporte mensual compara ingresos vs gastos mes a mes para identificar tendencias.'),
-        _Item('Exportar', 'Desde Reportes podés exportar tus datos a CSV para analizarlos en otra herramienta.'),
+        _Item('Comparativa mensual', 'El reporte de análisis compara ingresos vs gastos mes a mes para identificar tendencias.'),
+        _Item('Exportar', 'Desde Análisis podés exportar tus datos a CSV para analizarlos en otra herramienta.'),
       ],
     ),
     _Section(

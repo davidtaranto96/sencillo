@@ -49,7 +49,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage>
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                 child: Text(
-                  'Objetivos',
+                  'Metas',
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,

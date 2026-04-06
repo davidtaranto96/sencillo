@@ -22,15 +22,15 @@ const kAlwaysVisibleTabs = {'home', 'more'};
 const kMaxVisibleTabs = 6;
 
 const kTabInfo = <String, ({String label, IconData icon})>{
-  'home': (label: 'Home', icon: Icons.home_rounded),
+  'home': (label: 'Inicio', icon: Icons.home_rounded),
   'transactions': (label: 'Movimientos', icon: Icons.swap_horiz_rounded),
   'budget': (label: 'Presupuesto', icon: Icons.donut_large_rounded),
-  'goals': (label: 'Objetivos', icon: Icons.flag_rounded),
+  'goals': (label: 'Metas', icon: Icons.flag_rounded),
   'more': (label: 'Más', icon: Icons.grid_view_rounded),
   'monthly_overview': (label: 'Mes', icon: Icons.calendar_month_rounded),
-  'people': (label: 'Personas', icon: Icons.people_rounded),
-  'wishlist': (label: 'Wishlist', icon: Icons.shopping_cart_rounded),
-  'reports': (label: 'Reportes', icon: Icons.bar_chart_rounded),
+  'people': (label: 'Amigos', icon: Icons.people_rounded),
+  'wishlist': (label: 'Antojos', icon: Icons.shopping_cart_rounded),
+  'reports': (label: 'Análisis', icon: Icons.bar_chart_rounded),
   'accounts': (label: 'Cuentas', icon: Icons.account_balance_rounded),
   'savings': (label: 'Ahorros', icon: Icons.savings_rounded),
 };

@@ -9,6 +9,7 @@ import '../../core/providers/shell_providers.dart';
 import '../../core/providers/tab_config_provider.dart';
 import '../../core/providers/feedback_provider.dart';
 import '../../core/providers/mercado_pago_provider.dart';
+import '../../core/providers/friend_requests_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/dashboard/presentation/pages/home_page.dart';
 import '../../features/transactions/presentation/pages/transactions_page.dart';
@@ -166,6 +167,11 @@ class _AppShellState extends ConsumerState<AppShell> {
       _searchController.clear();
     }
 
+    // Marcar alertas como leídas al visitar Más
+    if (tabId == 'more') {
+      ref.read(notificationCenterProvider.notifier).markAllAsRead();
+    }
+
     // Sync with GoRouter for the 5 original branch tabs
     final branch = _tabToBranch[tabId];
     if (branch != null) {
@@ -192,8 +198,12 @@ class _AppShellState extends ConsumerState<AppShell> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final fabBottom = bottomPadding + 90.0;
     final txSearchActive = ref.watch(txSearchActiveProvider);
-    final budgets = ref.watch(budgetsStreamProvider).valueOrNull ?? [];
-    final goals = ref.watch(goalsStreamProvider).valueOrNull ?? [];
+    // Selector: solo rebuilda cuando isEmpty cambia (no en cada item add/remove)
+    final hasBudgets = ref.watch(budgetsStreamProvider.select((v) => (v.valueOrNull?.isNotEmpty) ?? false));
+    final hasGoals = ref.watch(goalsStreamProvider.select((v) => (v.valueOrNull?.isNotEmpty) ?? false));
+    // Badge counts
+    final friendReqCount = ref.watch(friendRequestCountProvider).valueOrNull ?? 0;
+    final unreadAlerts = ref.watch(unreadNotificationCountProvider);
 
     // Handle tab config changes (user modified settings)
     if (!_listEquals(enabledTabIds, _lastTabConfig)) {
@@ -234,14 +244,21 @@ class _AppShellState extends ConsumerState<AppShell> {
       }
     });
 
-    // Build visible tab items for nav bar
-    final visibleTabs = enabledTabIds
-        .map((id) => _TabItem(
-              id: id,
-              label: kTabInfo[id]!.label,
-              icon: kTabInfo[id]!.icon,
-            ))
-        .toList();
+    // Build visible tab items for nav bar (con badge counts)
+    final visibleTabs = enabledTabIds.map((id) {
+      int badge = 0;
+      if (id == 'people') {
+        badge = friendReqCount;
+      } else if (id == 'more') {
+        badge = unreadAlerts;
+      }
+      return _TabItem(
+        id: id,
+        label: kTabInfo[id]!.label,
+        icon: kTabInfo[id]!.icon,
+        badgeCount: badge,
+      );
+    }).toList();
 
     // Current tab info
     final currentTabId =
@@ -267,7 +284,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           };
         }
       case 'budget':
-        if (budgets.isNotEmpty) {
+        if (hasBudgets) {
           fabIcon = Icons.add_rounded;
           fabAction = () {
             appHaptic(ref, type: HapticType.medium);
@@ -276,7 +293,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           };
         }
       case 'goals':
-        if (goals.isNotEmpty) {
+        if (hasGoals) {
           fabIcon = Icons.add_rounded;
           fabAction = () {
             appHaptic(ref, type: HapticType.medium);
@@ -631,16 +648,51 @@ class _NavItemState extends State<_NavItem>
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(widget.tab.icon,
-                      key: ValueKey(isSelected),
-                      size: widget.showLabel
-                          ? (isSelected ? 24 : 22)
-                          : (isSelected ? 26 : 24),
-                      color: isSelected
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.32)),
+                // Ícono con badge de alerta
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(widget.tab.icon,
+                          key: ValueKey(isSelected),
+                          size: widget.showLabel
+                              ? (isSelected ? 24 : 22)
+                              : (isSelected ? 26 : 24),
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.32)),
+                    ),
+                    if (widget.tab.badgeCount > 0)
+                      Positioned(
+                        top: -5,
+                        right: -7,
+                        child: AnimatedScale(
+                          scale: 1.0,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.elasticOut,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1.5),
+                            constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(color: const Color(0xFF18181F), width: 1.5),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              widget.tab.badgeCount > 9 ? '9+' : '${widget.tab.badgeCount}',
+                              style: GoogleFonts.inter(
+                                fontSize: 7,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 if (widget.showLabel) ...[
                   const SizedBox(height: 3),
@@ -696,6 +748,11 @@ class _TabItem {
   final String id;
   final String label;
   final IconData icon;
-  const _TabItem(
-      {required this.id, required this.label, required this.icon});
+  final int badgeCount;
+  const _TabItem({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.badgeCount = 0,
+  });
 }

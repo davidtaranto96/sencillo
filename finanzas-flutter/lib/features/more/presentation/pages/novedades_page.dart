@@ -21,11 +21,26 @@ class NovedadesPage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
+          // v1.5.3
+          _VersionCard(
+            version: 'v1.5.3',
+            date: '5 Abr 2026',
+            isCurrent: true,
+            items: const [
+              _ChangeItem(icon: Icons.person_rounded, text: 'Ventana de persona rediseñada: hero card con gradiente y balance grande y legible', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.bolt_rounded, text: 'Acciones rápidas siempre visibles: Nuevo gasto, Liquidar y Deuda anterior sin importar el saldo', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.bar_chart_rounded, text: 'Nueva tarjeta de estadísticas: total gastado juntos, cantidad de gastos compartidos y último movimiento', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.group_rounded, text: 'Desglose de deudas por grupo directo en la ventana de persona', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.label_rounded, text: 'Historial mejorado: badges de tipo (Compartido, Préstamo, Liquidado, Cobrado) en cada movimiento', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.handshake_rounded, text: 'Liquidar con saldo 0 muestra mensaje "Al día" en vez de fallar silenciosamente', type: _ChangeType.improvement),
+            ],
+          ),
+
           // v1.5.2
           _VersionCard(
             version: 'v1.5.2',
             date: '5 Abr 2026',
-            isCurrent: true,
+            isCurrent: false,
             items: const [
               _ChangeItem(icon: Icons.bug_report_rounded, text: 'Fix: vincular amigo ya no falla si no tenés personas en tu lista', type: _ChangeType.fix),
               _ChangeItem(icon: Icons.keyboard_rounded, text: 'Nuevo: ingreso manual de código de amigo como alternativa al QR', type: _ChangeType.feature),

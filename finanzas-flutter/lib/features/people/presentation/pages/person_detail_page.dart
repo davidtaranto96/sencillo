@@ -110,7 +110,7 @@ class _PersonDetailPageState extends ConsumerState<PersonDetailPage> {
               isPositive: isPositive,
               onNewExpense: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => AddExpensePage(preselectedPersonId: person.id)),
+                MaterialPageRoute(builder: (_) => AddExpensePage(preselectedPersonId: widget.person.id)),
               ),
               onLiquidate: () => isZero
                   ? ScaffoldMessenger.of(context).showSnackBar(
@@ -441,13 +441,13 @@ class _PersonDetailPageState extends ConsumerState<PersonDetailPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E2C),
         title: const Text('Eliminar persona', style: TextStyle(color: Colors.white)),
-        content: Text('¿Eliminar a ${person.displayName}? Se mantendrán las transacciones.',
+        content: Text('¿Eliminar a ${widget.person.displayName}? Se mantendrán las transacciones.',
             style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           FilledButton(
             onPressed: () async {
-              await ref.read(peopleServiceProvider).deletePerson(person.id);
+              await ref.read(peopleServiceProvider).deletePerson(widget.person.id);
               if (ctx.mounted) Navigator.pop(ctx);
               if (context.mounted) Navigator.pop(context);
             },

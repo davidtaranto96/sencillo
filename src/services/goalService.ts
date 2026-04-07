@@ -72,4 +72,14 @@ export const goalService = {
     db.runSync('UPDATE goals SET current_amount = ?, status = ? WHERE id = ?', [newAmount, newStatus, id]);
     return { ...goal, currentAmount: newAmount, status: newStatus };
   },
+
+  removeContribution(id: string, amount: number): Goal | null {
+    const db = getDb();
+    const goal = this.getById(id);
+    if (!goal) return null;
+    const newAmount = Math.max(0, goal.currentAmount - amount);
+    const newStatus: GoalStatus = newAmount >= goal.targetAmount ? 'completed' : 'active';
+    db.runSync('UPDATE goals SET current_amount = ?, status = ? WHERE id = ?', [newAmount, newStatus, id]);
+    return { ...goal, currentAmount: newAmount, status: newStatus };
+  },
 };

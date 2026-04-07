@@ -45,16 +45,26 @@ export default function TransactionDetailScreen() {
   const typeConf = TYPE_CONFIG[transaction.type] ?? TYPE_CONFIG.expense;
 
   function handleDelete() {
+    const tx = transaction!;
+    let message = '¿Estás seguro? Se revertirá el saldo de la cuenta.';
+    if (tx.type === 'transfer') {
+      message = '¿Estás seguro? Se revertirá el saldo de ambas cuentas (origen y destino).';
+    } else if (tx.isShared) {
+      message = '¿Estás seguro? Se revertirá el saldo, se eliminará la deuda asociada y los datos del gasto compartido.';
+    } else if (tx.goalId) {
+      message = '¿Estás seguro? Se revertirá el saldo y la contribución al objetivo.';
+    }
+
     Alert.alert(
       'Eliminar movimiento',
-      '¿Estás seguro? Se revertirá el saldo de la cuenta.',
+      message,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
-            deleteTransaction(transaction!.id);
+            deleteTransaction(tx.id);
             router.back();
           },
         },

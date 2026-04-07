@@ -17,7 +17,7 @@ interface TransactionState {
   update: (id: string, data: Partial<Transaction>) => void;
   delete: (id: string) => void;
   getFiltered: () => Transaction[];
-  getMonthlyTotals: (year: number, month: number) => { income: number; expense: number; saving: number; investment: number };
+  getMonthlyTotals: (year: number, month: number) => { income: number; expense: number; saving: number; investment: number; sharedExpenseTotal: number };
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({

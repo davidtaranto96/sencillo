@@ -14,10 +14,12 @@ class SencilloApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final ctrl = ref.watch(onboardingProvider);
+    // Only rebuild when isLoaded or isComplete actually changes (not on every notify)
+    final isLoaded = ref.watch(onboardingProvider.select((c) => c.isLoaded));
+    final isComplete = ref.watch(onboardingProvider.select((c) => c.isComplete));
 
     // While SharedPreferences is loading, show animated splash
-    if (!ctrl.isLoaded) {
+    if (!isLoaded) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark(),
@@ -28,7 +30,7 @@ class SencilloApp extends ConsumerWidget {
     }
 
     // Onboarding not complete → show onboarding page
-    if (!ctrl.isComplete) {
+    if (!isComplete) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark(),

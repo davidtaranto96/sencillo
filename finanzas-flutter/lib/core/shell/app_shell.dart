@@ -41,7 +41,7 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
   late PageController _pageController;
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
@@ -67,6 +67,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: 0);
     // Schedule notifications on app start + check for in-app alerts + MP auto-sync
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -75,6 +76,26 @@ class _AppShellState extends ConsumerState<AppShell> {
       _checkInAppAlerts();
       _tryAutoSyncMercadoPago();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Forzar rebuild de streams al volver del background para evitar pantalla negra
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.invalidate(accountsStreamProvider);
+        ref.invalidate(transactionsStreamProvider);
+      });
+    }
   }
 
   /// Check for upcoming card due dates and pending debts, add in-app notifications
@@ -131,13 +152,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     } catch (_) {
       // Silencioso — no interrumpir al usuario
     }
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override

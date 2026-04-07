@@ -786,6 +786,11 @@ class _WishlistCard extends ConsumerWidget {
                       ),
                     ),
 
+                    const SizedBox(width: 8),
+
+                    // Price history button
+                    _PriceHistoryButton(item: item),
+
                     const Spacer(),
 
                     // Buy button
@@ -808,6 +813,248 @@ class _WishlistCard extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Price History ───────────────────────────────────
+
+class _PriceHistoryButton extends ConsumerWidget {
+  final WishlistItem item;
+  const _PriceHistoryButton({required this.item});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tracker = ref.watch(priceTrackerProvider);
+    final history = tracker[item.id];
+    final hasEntries = history != null && history.entries.isNotEmpty;
+    final hasDrop = history?.hasDrop ?? false;
+
+    final color = hasDrop ? const Color(0xFF4CAF50) : Colors.white38;
+
+    return GestureDetector(
+      onTap: () => _showPriceHistorySheet(context, ref, item),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: hasDrop
+              ? const Color(0xFF4CAF50).withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasDrop
+                ? const Color(0xFF4CAF50).withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasEntries ? Icons.timeline_rounded : Icons.add_chart_rounded,
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              hasEntries
+                  ? (hasDrop ? '↓ Bajó' : '${history!.entries.length} precios')
+                  : 'Historial',
+              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showPriceHistorySheet(BuildContext context, WidgetRef ref, WishlistItem item) {
+  final ctrl = TextEditingController();
+  final fmt = NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
+  final dateFmt = DateFormat('dd/MM', 'es');
+
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF18181F),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    isScrollControlled: true,
+    builder: (ctx) => Consumer(
+      builder: (ctx, ref, _) {
+        final tracker = ref.watch(priceTrackerProvider);
+        final history = tracker[item.id];
+        final entries = history?.entries ?? [];
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 16),
+              Text('Historial de precios',
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+              const SizedBox(height: 4),
+              Text(item.title,
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.white54),
+                textAlign: TextAlign.center,
+              ),
+
+              // Stats row
+              if (entries.length >= 2) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _StatCol('Mínimo', fmt.format(history!.lowestPrice!), const Color(0xFF4CAF50)),
+                      _StatCol('Último', fmt.format(history.latestPrice!), Colors.white70),
+                      _StatCol('Máximo', fmt.format(history.highestPrice!), AppTheme.colorExpense),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Price list
+              if (entries.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    reverse: true,
+                    itemCount: entries.length,
+                    itemBuilder: (_, i) {
+                      final e = entries[i];
+                      final prev = i > 0 ? entries[i - 1] : null;
+                      final diff = prev != null ? e.price - prev.price : null;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Text(dateFmt.format(e.date), style: TextStyle(color: Colors.white30, fontSize: 12)),
+                            const SizedBox(width: 12),
+                            Text(fmt.format(e.price), style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                            if (diff != null && diff != 0) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                diff < 0 ? Icons.arrow_drop_down_rounded : Icons.arrow_drop_up_rounded,
+                                color: diff < 0 ? const Color(0xFF4CAF50) : AppTheme.colorExpense,
+                                size: 20,
+                              ),
+                              Text(
+                                fmt.format(diff.abs()),
+                                style: TextStyle(
+                                  color: diff < 0 ? const Color(0xFF4CAF50) : AppTheme.colorExpense,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            Text(
+                              e.source == 'meli' ? 'MeLi' : 'Manual',
+                              style: TextStyle(color: Colors.white24, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 20),
+                Text('Sin registros todavía', style: TextStyle(color: Colors.white24, fontSize: 13)),
+                Text('Anotá el precio cada vez que lo mires', style: TextStyle(color: Colors.white16, fontSize: 11)),
+              ],
+
+              // Add price input
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: ctrl,
+                      keyboardType: TextInputType.number,
+                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                      decoration: InputDecoration(
+                        prefixText: '\$ ',
+                        prefixStyle: TextStyle(color: AppTheme.colorWarning, fontSize: 18, fontWeight: FontWeight.w700),
+                        hintText: 'Precio actual',
+                        hintStyle: const TextStyle(color: Colors.white24),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppTheme.colorWarning),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Agregar'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.colorWarning,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      final val = double.tryParse(ctrl.text.replaceAll('.', '').replaceAll(',', '.'));
+                      if (val != null && val > 0) {
+                        ref.read(priceTrackerProvider.notifier).logPrice(item.id, val);
+                        if (val != item.estimatedCost) {
+                          ref.read(wishlistServiceProvider).updateItem(item.id, estimatedCost: val);
+                        }
+                        ctrl.clear();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Precio registrado: ${fmt.format(val)}'),
+                            backgroundColor: AppTheme.colorWarning.withValues(alpha: 0.8),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _StatCol extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _StatCol(this.label, this.value, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: GoogleFonts.inter(fontSize: 10, color: Colors.white38)),
+        const SizedBox(height: 2),
+        Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+      ],
     );
   }
 }

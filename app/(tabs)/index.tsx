@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native';
+import { useSmartRefresh } from '@/src/hooks/useSmartRefresh';
 import { Text, Surface, Divider } from 'react-native-paper';
 import { useFab } from '@/src/hooks/useFab';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -36,7 +37,9 @@ export default function HomeScreen() {
   const { categories, load: loadCategories } = useCategoryStore();
   const { goals, load: loadGoals } = useGoalStore();
 
-  const [refreshing, setRefreshing] = React.useState(false);
+  const { refreshing, onRefresh } = useSmartRefresh(useCallback(() => {
+    loadAll();
+  }, []));
 
   useFab({
     icon: 'plus',
@@ -82,11 +85,6 @@ export default function HomeScreen() {
     return () => stopDolarRefresh();
   }, []);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadAll();
-    setRefreshing(false);
-  }, []);
 
   // Month stats — calculado con useMemo para evitar objetos nuevos en cada render
   const monthTotals = useMemo(() => {

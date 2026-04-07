@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native';
+import { useSmartRefresh } from '@/src/hooks/useSmartRefresh';
 import {
   Text, Surface, Portal, Modal, Button, TextInput,
   ProgressBar, Divider,
@@ -73,6 +74,10 @@ export default function ObjetivosScreen() {
   const [newColor, setNewColor] = useState(GOAL_COLORS[0]);
   const [newIcon, setNewIcon] = useState(GOAL_ICONS[0]);
 
+  const { refreshing, onRefresh } = useSmartRefresh(useCallback(() => {
+    load();
+  }, []));
+
   useEffect(() => {
     load();
   }, []);
@@ -100,7 +105,7 @@ export default function ObjetivosScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Objetivos</Text>

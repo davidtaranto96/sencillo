@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native';
 import { Text, Surface, FAB, Portal, Modal, Button, TextInput, Divider } from 'react-native-paper';
+import { useSmartRefresh } from '@/src/hooks/useSmartRefresh';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as SQLite from 'expo-sqlite';
@@ -43,6 +44,10 @@ export default function PersonasScreen() {
     setDebts(loadDebts());
   }
 
+  const { refreshing, onRefresh } = useSmartRefresh(useCallback(() => {
+    refresh();
+  }, []));
+
   function handleCreate() {
     if (!newName.trim()) return;
     const db = getDb();
@@ -76,7 +81,7 @@ export default function PersonasScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />}>
         {/* Summary */}
         {debts.length > 0 && (
           <View style={styles.summaryRow}>

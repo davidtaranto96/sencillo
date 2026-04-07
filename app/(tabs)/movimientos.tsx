@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
-import { View, FlatList, StyleSheet, SectionList } from 'react-native';
+import { View, FlatList, StyleSheet, SectionList, RefreshControl } from 'react-native';
+import { useSmartRefresh } from '@/src/hooks/useSmartRefresh';
 import { Text, Surface, Searchbar, Divider } from 'react-native-paper';
 import { useFab } from '@/src/hooks/useFab';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -38,6 +39,12 @@ export default function MovimientosScreen() {
   const { transactions, load, filter, setFilter, searchQuery, setSearchQuery } = useTransactionStore();
   const { categories, load: loadCategories } = useCategoryStore();
   const { accounts, load: loadAccounts } = useAccountStore();
+
+  const { refreshing, onRefresh } = useSmartRefresh(useCallback(() => {
+    load();
+    loadCategories();
+    loadAccounts();
+  }, []));
 
   useEffect(() => {
     load();
@@ -109,6 +116,7 @@ export default function MovimientosScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           stickySectionHeadersEnabled={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />}
           renderSectionHeader={({ section }) => (
             <Text style={styles.dateHeader}>{section.title}</Text>
           )}

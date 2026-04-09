@@ -729,15 +729,14 @@ class _WishlistCard extends ConsumerWidget {
 
                 const SizedBox(height: 14),
 
-                // ── Action row: Link + Savings + Buy ──
+                // ── Action row: Link + Savings + History ──
                 Row(
                   children: [
                     // Link button (opens URL directly)
-                    if (item.url != null && item.url!.isNotEmpty)
+                    if (item.url != null && item.url!.isNotEmpty) ...[
                       _LinkButton(url: item.url!),
-
-                    if (item.url != null && item.url!.isNotEmpty)
                       const SizedBox(width: 8),
+                    ],
 
                     // Savings indicator
                     GestureDetector(
@@ -793,18 +792,18 @@ class _WishlistCard extends ConsumerWidget {
 
                     const Spacer(),
 
-                    // Buy button
-                    FilledButton.icon(
-                      icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 15),
-                      label: const Text('Comprar'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.colorWarning,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    // Buy button — icon only to avoid overflow
+                    GestureDetector(
+                      onTap: () => PurchaseBottomSheet.show(context, item),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.colorWarning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.colorWarning.withValues(alpha: 0.3)),
+                        ),
+                        child: Icon(Icons.shopping_cart_checkout_rounded, size: 18, color: AppTheme.colorWarning),
                       ),
-                      onPressed: () => PurchaseBottomSheet.show(context, item),
                     ),
                   ],
                 ),

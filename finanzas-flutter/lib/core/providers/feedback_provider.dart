@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _kSoundKey = 'pref_sound_enabled';
 const _kHapticKey = 'pref_haptic_enabled';
+const _kAiAssistantKey = 'pref_ai_assistant_enabled';
 
 /// Whether sound feedback is enabled (default: true)
 final soundEnabledProvider = StateNotifierProvider<BoolPrefNotifier, bool>(
@@ -14,6 +15,11 @@ final soundEnabledProvider = StateNotifierProvider<BoolPrefNotifier, bool>(
 /// Whether haptic feedback is enabled (default: true)
 final hapticEnabledProvider = StateNotifierProvider<BoolPrefNotifier, bool>(
   (ref) => BoolPrefNotifier(_kHapticKey, defaultValue: true),
+);
+
+/// Whether the AI voice assistant button is shown (default: false)
+final aiAssistantEnabledProvider = StateNotifierProvider<BoolPrefNotifier, bool>(
+  (ref) => BoolPrefNotifier(_kAiAssistantKey, defaultValue: false),
 );
 
 class BoolPrefNotifier extends StateNotifier<bool> {

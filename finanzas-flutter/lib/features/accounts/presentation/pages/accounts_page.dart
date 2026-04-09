@@ -14,46 +14,7 @@ import '../../../../core/widgets/app_fab.dart';
 import '../../../../core/providers/mercado_pago_provider.dart';
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
 import '../../domain/models/account.dart' as dom;
-
-const _accountIcons = <String, IconData>{
-  'wallet': Icons.account_balance_wallet_rounded,
-  'bank': Icons.account_balance_rounded,
-  'credit_card': Icons.credit_card_rounded,
-  'savings': Icons.savings_rounded,
-  'cash': Icons.payments_rounded,
-  'phone': Icons.phone_android_rounded,
-  'store': Icons.store_rounded,
-  'piggy': Icons.savings_outlined,
-  'chart': Icons.show_chart_rounded,
-  'world': Icons.public_rounded,
-};
-
-const _accountColors = <Color>[
-  AppTheme.colorTransfer,
-  AppTheme.colorIncome,
-  AppTheme.colorExpense,
-  AppTheme.colorWarning,
-  Color(0xFF6C63FF),
-  Color(0xFF00BCD4),
-  Color(0xFFFF6B9D),
-  Color(0xFFFF9800),
-  Color(0xFF8BC34A),
-  Color(0xFF9C27B0),
-];
-
-IconData getAccountIcon(String name) {
-  return _accountIcons[name] ?? Icons.account_balance_wallet_rounded;
-}
-
-Color getAccountColor(dom.Account acc) {
-  if (acc.color != null) {
-    return Color(
-      int.tryParse(acc.color!.replaceFirst('#', ''), radix: 16) ??
-          AppTheme.colorTransfer.toARGB32(),
-    );
-  }
-  return AppTheme.colorTransfer;
-}
+import '../widgets/edit_account_sheet.dart';
 
 class AccountsPage extends ConsumerWidget {
   final bool standalone;
@@ -374,7 +335,7 @@ class AccountsPage extends ConsumerWidget {
                       color: Colors.white, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
-                _showEditAccountDialog(context, ref, acc);
+                showEditAccountSheet(context, ref, acc);
               },
             ),
             if (!acc.isDefault)
@@ -433,216 +394,6 @@ class AccountsPage extends ConsumerWidget {
               ),
             const SizedBox(height: 8),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // Edit account bottom sheet
-  // ──────────────────────────────────────────────────────────────
-  void _showEditAccountDialog(
-      BuildContext context, WidgetRef ref, dom.Account acc) {
-    final nameCtrl = TextEditingController(text: acc.name);
-    final aliasCtrl = TextEditingController(text: acc.alias ?? '');
-    final cvuCtrl = TextEditingController(text: acc.cvu ?? '');
-    String selectedIcon = acc.icon ?? 'wallet';
-    Color selectedColor = getAccountColor(acc);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => SingleChildScrollView(
-          child: Container(
-            padding: EdgeInsets.fromLTRB(
-                24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
-            decoration: const BoxDecoration(
-              color: Color(0xFF18181F),
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(32)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text('Editar cuenta',
-                    style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: nameCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Nombre',
-                    labelStyle:
-                        const TextStyle(color: AppTheme.colorTransfer),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text('Ícono',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _accountIcons.entries.map((entry) {
-                    final isSelected = entry.key == selectedIcon;
-                    return GestureDetector(
-                      onTap: () =>
-                          setState(() => selectedIcon = entry.key),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? selectedColor.withValues(alpha: 0.2)
-                              : Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected
-                              ? Border.all(
-                                  color: selectedColor, width: 2)
-                              : null,
-                        ),
-                        child: Icon(entry.value,
-                            color: isSelected
-                                ? selectedColor
-                                : Colors.white38,
-                            size: 20),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                Text('Color',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _accountColors.map((color) {
-                    final isSelected =
-                        color.toARGB32() == selectedColor.toARGB32();
-                    return GestureDetector(
-                      onTap: () =>
-                          setState(() => selectedColor = color),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: isSelected
-                              ? Border.all(
-                                  color: Colors.white, width: 3)
-                              : null,
-                        ),
-                        child: isSelected
-                            ? const Icon(Icons.check_rounded,
-                                color: Colors.white, size: 18)
-                            : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: aliasCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Alias (opcional)',
-                    labelStyle:
-                        const TextStyle(color: AppTheme.colorTransfer),
-                    hintText: 'Ej: mi.alias.mp',
-                    hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.2)),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: cvuCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'CVU / CBU (opcional)',
-                    labelStyle:
-                        const TextStyle(color: AppTheme.colorTransfer),
-                    hintText: 'Ej: 0000003100...',
-                    hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.2)),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: () async {
-                      await ref
-                          .read(accountServiceProvider)
-                          .updateAccount(
-                            id: acc.id,
-                            name: nameCtrl.text.trim().isEmpty
-                                ? null
-                                : nameCtrl.text.trim(),
-                            iconName: selectedIcon,
-                            colorValue: selectedColor.toARGB32(),
-                            alias: aliasCtrl.text.trim().isEmpty
-                                ? null
-                                : aliasCtrl.text.trim(),
-                            clearAlias:
-                                aliasCtrl.text.trim().isEmpty,
-                            cvu: cvuCtrl.text.trim().isEmpty
-                                ? null
-                                : cvuCtrl.text.trim(),
-                            clearCvu: cvuCtrl.text.trim().isEmpty,
-                          );
-                      if (ctx.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Cuenta actualizada')),
-                        );
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.colorTransfer,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text('Guardar',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -777,7 +528,7 @@ class AccountsPage extends ConsumerWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _accountIcons.entries.map((entry) {
+                    children: accountIcons.entries.map((entry) {
                       final isSelected =
                           entry.key == selectedIcon;
                       return GestureDetector(
@@ -819,7 +570,7 @@ class AccountsPage extends ConsumerWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _accountColors.map((color) {
+                    children: accountColors.map((color) {
                       final isSelected = color.toARGB32() ==
                           selectedColor.toARGB32();
                       return GestureDetector(

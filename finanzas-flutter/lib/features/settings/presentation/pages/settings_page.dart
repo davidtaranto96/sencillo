@@ -198,6 +198,13 @@ class SettingsPage extends ConsumerWidget {
 
           const SizedBox(height: 24),
           _SectionTitle('Inteligencia Artificial'),
+          _SwitchTile(
+            icon: Icons.mic_rounded,
+            title: 'Asistente de voz',
+            subtitle: 'Botón de IA en pantalla principal',
+            color: const Color(0xFF6C63FF),
+            provider: aiAssistantEnabledProvider,
+          ),
           _ApiKeyTile(),
 
           const SizedBox(height: 24),

@@ -23,6 +23,12 @@ subprojects {
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
+        // Force Kotlin JVM target to 17 for plugins (e.g. flutter_tts)
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            compilerOptions {
+                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            }
+        }
     }
 }
 subprojects {

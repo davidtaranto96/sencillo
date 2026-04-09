@@ -10,6 +10,7 @@ import '../../../../core/logic/account_service.dart';
 import '../../../../core/logic/transaction_service.dart';
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
 import '../../domain/models/account.dart' as dom;
+import '../widgets/edit_account_sheet.dart';
 
 class AccountDetailPage extends ConsumerWidget {
   final String accountId;
@@ -33,7 +34,7 @@ class AccountDetailPage extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.edit_outlined),
-                onPressed: () => _showEditAccountDialog(context, ref, account),
+                onPressed: () => showEditAccountSheet(context, ref, account),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: AppTheme.colorExpense),
@@ -439,212 +440,6 @@ class _QuickActionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-// ──────────────────────────────────────────────────────
-// Editar Cuenta
-// ──────────────────────────────────────────────────────
-void _showEditAccountDialog(BuildContext context, WidgetRef ref, dom.Account account) {
-  final nameController = TextEditingController(text: account.name);
-  final balanceController = TextEditingController(text: formatInitialAmount(account.balance));
-  final closingDayController = TextEditingController(text: account.closingDay?.toString() ?? '');
-  final dueDayController = TextEditingController(text: account.dueDay?.toString() ?? '');
-  final aliasController = TextEditingController(text: account.alias ?? '');
-  final cvuController = TextEditingController(text: account.cvu ?? '');
-  final creditLimitController = TextEditingController(text: account.creditLimit != null ? formatInitialAmount(account.creditLimit!) : '');
-  final debtController = TextEditingController(text: account.pendingStatementAmount > 0 ? formatInitialAmount(account.pendingStatementAmount) : '');
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) => Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 100),
-      decoration: const BoxDecoration(
-        color: Color(0xFF18181F),
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 24),
-            Text('Editar Cuenta', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-            const SizedBox(height: 24),
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Nombre de la cuenta',
-                labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: balanceController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [ThousandsSeparatorFormatter()],
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: account.isCreditCard ? 'Gastos del período' : 'Saldo actual',
-                prefixText: r'$ ',
-                labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-            if (account.isCreditCard) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: closingDayController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Día de cierre',
-                        hintText: 'Ej: 15',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                        labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: dueDayController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Día de vencimiento',
-                        hintText: 'Ej: 5',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                        labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: creditLimitController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsSeparatorFormatter()],
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Límite de crédito (opcional)',
-                  prefixText: r'$ ',
-                  hintText: 'Ej: 500.000',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                  labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: debtController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsSeparatorFormatter()],
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Deuda pendiente',
-                  prefixText: r'$ ',
-                  hintText: 'Ej: 120.000',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                  labelStyle: const TextStyle(color: AppTheme.colorExpense),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppTheme.colorExpense),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            TextField(
-              controller: aliasController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Alias (opcional)',
-                hintText: 'Ej: mi.cuenta.mp',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: cvuController,
-              style: const TextStyle(color: Colors.white),
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'CBU / CVU (opcional)',
-                hintText: '22 dígitos',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                labelStyle: const TextStyle(color: AppTheme.colorTransfer),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: () async {
-                  final newBalance = balanceController.text.isNotEmpty ? parseFormattedAmount(balanceController.text) : null;
-                  double? newInitialBalance;
-                  if (newBalance != null && newBalance != account.balance) {
-                    final db = ref.read(databaseProvider);
-                    final entity = await (db.select(db.accountsTable)..where((t) => t.id.equals(account.id))).getSingle();
-                    newInitialBalance = entity.initialBalance + (newBalance - account.balance);
-                  }
-
-                  final closingDay = int.tryParse(closingDayController.text);
-                  final dueDay = int.tryParse(dueDayController.text);
-                  final creditLimit = creditLimitController.text.isNotEmpty ? parseFormattedAmount(creditLimitController.text) : null;
-                  final debt = parseFormattedAmount(debtController.text);
-                  final alias = aliasController.text.trim();
-                  final cvu = cvuController.text.trim();
-
-                  await ref.read(accountServiceProvider).updateAccount(
-                    id: account.id,
-                    name: nameController.text,
-                    initialBalance: newInitialBalance,
-                    closingDay: closingDay,
-                    dueDay: dueDay,
-                    clearClosingDay: closingDayController.text.isEmpty && account.closingDay != null,
-                    clearDueDay: dueDayController.text.isEmpty && account.dueDay != null,
-                    creditLimit: creditLimit,
-                    clearCreditLimit: creditLimitController.text.isEmpty && account.creditLimit != null,
-                    pendingStatementAmount: debt,
-                    alias: alias.isNotEmpty ? alias : null,
-                    clearAlias: alias.isEmpty && account.alias != null,
-                    cvu: cvu.isNotEmpty ? cvu : null,
-                    clearCvu: cvu.isEmpty && account.cvu != null,
-                  );
-                  if (context.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Cuenta actualizada')),
-                    );
-                  }
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.colorTransfer,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                child: const Text('Guardar Cambios', style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 // ──────────────────────────────────────────────────────

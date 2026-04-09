@@ -32,6 +32,7 @@ import '../logic/recurring_service.dart';
 import '../widgets/app_fab.dart';
 import '../logic/transaction_service.dart';
 import '../widgets/success_overlay.dart';
+import '../widgets/ai_assistant_sheet.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -386,6 +387,33 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             onPageChanged: _onPageChanged,
             physics: const BouncingScrollPhysics(),
             children: enabledTabIds.map(_pageForTab).toList(),
+          ),
+
+          // ── AI Assistant button ──
+          Positioned(
+            left: 16,
+            bottom: fabBottom,
+            child: GestureDetector(
+              onTap: () => showAiAssistantSheet(context),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFF5ECFB1)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+              ),
+            ),
           ),
 
           // ── Morphing FAB — always in tree, animated in/out ──

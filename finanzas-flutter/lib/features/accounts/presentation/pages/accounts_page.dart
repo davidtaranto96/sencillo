@@ -11,6 +11,7 @@ import '../../../../core/logic/account_service.dart';
 import '../../../../core/utils/format_utils.dart';
 import '../../../../core/providers/account_order_provider.dart';
 import '../../../../core/widgets/app_fab.dart';
+import '../../../../core/providers/mercado_pago_provider.dart';
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
 import '../../domain/models/account.dart' as dom;
 
@@ -101,6 +102,7 @@ class AccountsPage extends ConsumerWidget {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final customOrder = ref.watch(accountOrderProvider);
     final txsAsync = ref.watch(transactionsStreamProvider);
+    final mpLinkedId = ref.watch(mpLinkedAccountIdProvider).valueOrNull;
 
     return accountsAsync.when(
       loading: () =>
@@ -178,6 +180,7 @@ class AccountsPage extends ConsumerWidget {
                     account: acc,
                     monthSpend: monthSpendByAccount[acc.id] ?? 0.0,
                     periodSpend: periodSpendByAccount[acc.id],
+                    isMpLinked: mpLinkedId != null && acc.id == mpLinkedId,
                     onTap: () => context.push('/accounts/${acc.id}'),
                     onLongPress: () =>
                         _showAccountOptions(context, ref, acc),
@@ -1246,6 +1249,7 @@ class _AccountCard extends StatelessWidget {
   final dom.Account account;
   final double monthSpend;
   final double? periodSpend; // Billing-cycle spend for credit cards
+  final bool isMpLinked;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback? onPayStatement;
@@ -1254,15 +1258,18 @@ class _AccountCard extends StatelessWidget {
     required this.account,
     required this.monthSpend,
     this.periodSpend,
+    this.isMpLinked = false,
     required this.onTap,
     required this.onLongPress,
     this.onPayStatement,
   });
 
+  static const _mpBlue = Color(0xFF009EE3);
+
   @override
   Widget build(BuildContext context) {
     final acc = account;
-    final accColor = getAccountColor(acc);
+    final accColor = isMpLinked ? _mpBlue : getAccountColor(acc);
     final isDefault = acc.isDefault;
 
     return GestureDetector(
@@ -1272,13 +1279,25 @@ class _AccountCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E2C),
+          gradient: isMpLinked
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF009EE3), Color(0xFF00B1EA)],
+                )
+              : null,
+          color: isMpLinked ? null : const Color(0xFF1E1E2C),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isDefault
-                ? accColor.withValues(alpha: 0.3)
-                : Colors.white.withValues(alpha: 0.05),
+            color: isMpLinked
+                ? Colors.transparent
+                : isDefault
+                    ? accColor.withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.05),
           ),
+          boxShadow: isMpLinked
+              ? [BoxShadow(color: _mpBlue.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))]
+              : null,
         ),
         child: Column(
           children: [
@@ -1287,12 +1306,14 @@ class _AccountCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: accColor.withValues(alpha: 0.1),
+                    color: isMpLinked
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : accColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                       getAccountIcon(acc.icon ?? 'wallet'),
-                      color: accColor),
+                      color: isMpLinked ? Colors.white : accColor),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1311,20 +1332,36 @@ class _AccountCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (isMpLinked) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text('MP',
+                                  style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800)),
+                            ),
+                          ],
                           if (isDefault) ...[
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color:
-                                    accColor.withValues(alpha: 0.15),
+                                color: isMpLinked
+                                    ? Colors.white.withValues(alpha: 0.2)
+                                    : accColor.withValues(alpha: 0.15),
                                 borderRadius:
                                     BorderRadius.circular(6),
                               ),
                               child: Text('Por defecto',
                                   style: TextStyle(
-                                      color: accColor,
+                                      color: isMpLinked ? Colors.white : accColor,
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600)),
                             ),

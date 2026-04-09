@@ -51,15 +51,39 @@ final mpSyncedIdsProvider = FutureProvider<Set<String>>((ref) async {
 const _linkedAccountKey = 'mp_linked_account_id';
 
 /// ID of the local account linked to Mercado Pago (null if none).
-/// Falls back to 'mp_ars' if MP is connected but no explicit link was saved.
+/// Falls back to searching by ID 'mp_ars' or by name containing 'mercado pago'.
 final mpLinkedAccountIdProvider = FutureProvider<String?>((ref) async {
   ref.watch(_mpRefreshCounter);
   final prefs = await SharedPreferences.getInstance();
+
+  // 1. Explicit saved link
   final explicit = prefs.getString(_linkedAccountKey);
   if (explicit != null) return explicit;
-  // Fallback: if MP is connected, check for default mp_ars account
+
+  // 2. Only search further if MP is connected
   final token = prefs.getString(_tokenKey);
-  if (token != null && token.isNotEmpty) return 'mp_ars';
+  if (token == null || token.isEmpty) return null;
+
+  // 3. Search DB for mp_ars or by name
+  final db = ref.read(databaseProvider);
+  final byId = await (db.select(db.accountsTable)
+        ..where((t) => t.id.equals('mp_ars')))
+      .getSingleOrNull();
+  if (byId != null) {
+    await prefs.setString(_linkedAccountKey, byId.id);
+    return byId.id;
+  }
+
+  // 4. Search by name containing "mercado pago"
+  final all = await db.select(db.accountsTable).get();
+  for (final a in all) {
+    if (a.name.toLowerCase().contains('mercado pago') ||
+        a.name.toLowerCase().contains('mercadopago')) {
+      await prefs.setString(_linkedAccountKey, a.id);
+      return a.id;
+    }
+  }
+
   return null;
 });
 

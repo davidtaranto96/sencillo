@@ -208,7 +208,7 @@ class _MorePageState extends ConsumerState<MorePage>
                       _CompactRow(
                         icon: Icons.rocket_launch_rounded,
                         label: 'Novedades',
-                        subtitle: 'Versión actual: v1.7.0',
+                        subtitle: 'Versión actual: v1.8.0',
                         color: AppTheme.colorIncome,
                         onTap: () => context.push('/novedades'),
                       ),
@@ -356,7 +356,7 @@ class _MorePageState extends ConsumerState<MorePage>
                   child: GestureDetector(
                     onTap: () => context.push('/novedades'),
                     child: Text(
-                      'Sencillo · v1.7.0',
+                      'Sencillo · v1.8.0',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,

@@ -25,11 +25,44 @@ class NovedadesPage extends StatelessWidget {
           _CurrentVersionBanner(),
           const SizedBox(height: 20),
 
+          // v1.8.0 — actual
+          _VersionCard(
+            version: 'v1.8.0',
+            date: '14 Abr 2026',
+            isCurrent: true,
+            items: const [
+              // Widgets Android
+              _ChangeItem(icon: Icons.widgets_rounded, text: 'Widgets rediseñados: Gastos con chips Hoy/Semana/Mes, Cotizaciones con Blue+Oficial+Tarjeta, Crypto y Acciones con prev/next entre favoritos, Agregar con círculo branded', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.aspect_ratio_rounded, text: 'Widgets adaptivos: el widget Gastos se reorganiza según el tamaño (chips completos o vista compacta)', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.preview_rounded, text: 'Previews reales en el selector de widgets de Android (no más íconos genéricos)', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.link_rounded, text: 'Fix: taps en widgets ya no producen "Page Not Found" — ruteo consolidado con deep links sencillo://', type: _ChangeType.fix),
+
+              // Reliability login/backup
+              _ChangeItem(icon: Icons.shield_rounded, text: 'Backup: validación de integridad SQLite + rename atómico (ningún backup corrupto puede sobreescribir tus datos)', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.warning_amber_rounded, text: 'Aviso de conflicto si tenés datos locales nuevos y la nube tiene un backup viejo (podés elegir cuál conservar)', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.block_rounded, text: 'No se puede cancelar la restauración con back físico — protege el DB durante la descarga', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.error_outline_rounded, text: 'Errores reales al conectar Google (no más falso "¡Conectado!" cuando falla)', type: _ChangeType.fix),
+
+              // Onboarding y tour
+              _ChangeItem(icon: Icons.celebration_rounded, text: 'Confetti al finalizar el wizard de bienvenida', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.schedule_rounded, text: 'Elegí la hora exacta del recordatorio diario desde el wizard', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.lightbulb_rounded, text: 'Tour ampliado con atajos y gestos ocultos (long-press FAB para voz, swipe ← para borrar, doble tap para duplicar)', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.school_rounded, text: 'Guías por pantalla nuevas: detalle de tx, cuentas, ajustes, recurrentes, notificaciones, personas', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.tips_and_updates_rounded, text: 'Banner de tip del día en el Home — 21 consejos rotativos sobre trucos y gestos', type: _ChangeType.feature),
+
+              // Cargar gasto inteligente
+              _ChangeItem(icon: Icons.undo_rounded, text: 'Botón "Deshacer" de 8 segundos después de cargar un gasto', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Alerta naranja al cruzar el 80% del presupuesto de una categoría', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.emoji_emotions_rounded, text: 'Emoji al inicio del texto ya asigna categoría (🍕→comida, 🚗→transporte, etc.)', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.access_time_rounded, text: 'Sugerencia de categoría por hora/día: almuerzo laboral, salida de fin de semana, servicios el día 1', type: _ChangeType.improvement),
+            ],
+          ),
+
           // v1.7.0
           _VersionCard(
             version: 'v1.7.0',
             date: '13 Abr 2026',
-            isCurrent: true,
+            isCurrent: false,
             items: const [
               _ChangeItem(icon: Icons.widgets_rounded, text: 'Widget de pantalla de inicio: agregá gastos con voz o manual sin abrir la app', type: _ChangeType.feature),
               _ChangeItem(icon: Icons.notifications_active_rounded, text: 'Detección de transferencias: detecta pagos de Mercado Pago, bancos y billeteras automáticamente', type: _ChangeType.feature),
@@ -672,7 +705,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                         border: Border.all(color: AppTheme.colorTransfer.withValues(alpha: 0.35)),
                       ),
                       child: Text(
-                        'v1.7.0',
+                        'v1.8.0',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,

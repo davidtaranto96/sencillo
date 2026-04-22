@@ -25,11 +25,25 @@ class NovedadesPage extends StatelessWidget {
           _CurrentVersionBanner(),
           const SizedBox(height: 20),
 
-          // v1.8.0 — actual
+          // v1.8.1 — actual
+          _VersionCard(
+            version: 'v1.8.1',
+            date: '22 Abr 2026',
+            isCurrent: true,
+            items: const [
+              _ChangeItem(icon: Icons.bug_report_rounded, text: 'Fix crítico: gastos compartidos ya no duplican la deuda en la cuenta (bug que mostraba \$1.022.000 cuando gastabas \$511.000)', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.healing_rounded, text: 'Reparación automática al hacer pull-to-refresh: corrige balances y totales de grupos afectados por el bug anterior', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.notifications_off_rounded, text: 'Fix: las notificaciones ya no reaparecen después de borrarlas — se persiste qué descartaste', type: _ChangeType.fix),
+              _ChangeItem(icon: Icons.clear_all_rounded, text: 'Botón "Limpiar todas" en el centro de notificaciones', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.attach_money_rounded, text: 'Fix: doble signo "\$" en el resumen de tarjeta ("Resumen de \$\$1.593.465" → "Resumen de \$1.593.465")', type: _ChangeType.fix),
+            ],
+          ),
+
+          // v1.8.0
           _VersionCard(
             version: 'v1.8.0',
             date: '14 Abr 2026',
-            isCurrent: true,
+            isCurrent: false,
             items: const [
               // Widgets Android
               _ChangeItem(icon: Icons.widgets_rounded, text: 'Widgets rediseñados: Gastos con chips Hoy/Semana/Mes, Cotizaciones con Blue+Oficial+Tarjeta, Crypto y Acciones con prev/next entre favoritos, Agregar con círculo branded', type: _ChangeType.feature),
@@ -705,7 +719,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                         border: Border.all(color: AppTheme.colorTransfer.withValues(alpha: 0.35)),
                       ),
                       child: Text(
-                        'v1.8.0',
+                        'v1.8.1',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -718,7 +732,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Version actual · 13 de Abril 2026',
+                  'Version actual · 22 de Abril 2026',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Colors.white38,

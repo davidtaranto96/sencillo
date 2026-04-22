@@ -574,7 +574,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     const SizedBox(height: 8),
 
                     Text(
-                      'v1.8.0',
+                      'v1.8.1',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         color: Colors.white.withValues(alpha: 0.08),

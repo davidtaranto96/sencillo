@@ -272,16 +272,10 @@ class PeopleService {
           .getSingle();
 
       if (iPaid) {
-        if (accountId != null) {
-          final account = await (db.select(db.accountsTable)
-                ..where((t) => t.id.equals(accountId)))
-              .getSingle();
-          await (db.update(db.accountsTable)
-                ..where((t) => t.id.equals(accountId)))
-              .write(AccountsTableCompanion(
-            initialBalance: drift.Value(account.initialBalance - totalAmount),
-          ));
-        }
+        // NO tocamos initialBalance acá — la transacción expense que se inserta
+        // abajo ya descuenta el monto del balance de la cuenta (el balance se
+        // calcula como initialBalance + incomes - expenses). Antes se hacía un
+        // doble descuento: initialBalance -= total y además tx expense -= total.
 
         await (db.update(db.personsTable)
               ..where((t) => t.id.equals(personId)))

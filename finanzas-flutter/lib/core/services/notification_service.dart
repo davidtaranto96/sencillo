@@ -150,9 +150,32 @@ final unreadNotificationCountProvider = Provider<int>((ref) {
 });
 
 class NotificationCenterNotifier extends StateNotifier<List<AppNotification>> {
-  NotificationCenterNotifier() : super([]);
+  NotificationCenterNotifier() : super([]) {
+    _loadDismissed();
+  }
+
+  /// IDs descartados por el usuario — sobreviven reinicios de app.
+  /// Si un ID está acá, _checkInAppAlerts no puede volver a crearlo.
+  final Set<String> _dismissedIds = {};
+
+  Future<void> _loadDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('dismissed_notification_ids') ?? [];
+    _dismissedIds.addAll(list);
+  }
+
+  Future<void> _saveDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+        'dismissed_notification_ids', _dismissedIds.toList());
+  }
 
   void add(AppNotification notification) {
+    // No re-crear notificaciones que el usuario ya descartó
+    if (_dismissedIds.contains(notification.id)) return;
+    // Dedup: no agregar si ya existe con el mismo ID
+    if (state.any((n) => n.id == notification.id)) return;
+
     state = [notification, ...state];
     // Keep max 50 notifications
     if (state.length > 50) {
@@ -172,11 +195,31 @@ class NotificationCenterNotifier extends StateNotifier<List<AppNotification>> {
   }
 
   void remove(String id) {
+    _dismissedIds.add(id);
+    _saveDismissed();
     state = state.where((n) => n.id != id).toList();
   }
 
   void clear() {
+    // Marcar todas las IDs actuales como descartadas
+    for (final n in state) {
+      _dismissedIds.add(n.id);
+    }
+    _saveDismissed();
     state = [];
+  }
+
+  /// Limpia las IDs descartadas que ya tienen más de 30 días
+  /// (para que las notificaciones del mes siguiente sí aparezcan).
+  void pruneOldDismissals() {
+    // Los IDs de alertas incluyen el mes (ej: card_due_xxx_4) o día.
+    // Prunear por tamaño — si hay más de 200, sacar los más viejos.
+    if (_dismissedIds.length > 200) {
+      final sorted = _dismissedIds.toList()..sort();
+      _dismissedIds.clear();
+      _dismissedIds.addAll(sorted.skip(sorted.length - 100));
+      _saveDismissed();
+    }
   }
 }
 

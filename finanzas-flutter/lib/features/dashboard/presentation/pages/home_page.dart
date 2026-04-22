@@ -587,7 +587,7 @@ class _NotificationsBottomSheet extends ConsumerWidget {
           allNotifs.add({
             'alertId': 'card_due_${card.id}',
             'title': due.isBefore(now) ? 'VENCIDO: ${card.name}' : 'Vencimiento: ${card.name}',
-            'body': 'Resumen de \$${formatAmount(card.pendingStatementAmount)}.',
+            'body': 'Resumen de ${formatAmount(card.pendingStatementAmount)}.',
             'icon': due.isBefore(now) ? Icons.error_outline_rounded : Icons.warning_rounded,
             'color': AppTheme.colorExpense,
           });

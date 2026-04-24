@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../database/database_providers.dart';
+import '../logic/ai_intent_parser.dart';
+import '../providers/ai_suggestions_provider.dart';
 import '../services/ai_assistant_service.dart';
 
 /// Shows the AI voice assistant bottom sheet.
@@ -119,6 +121,21 @@ class _AiAssistantSheetState extends ConsumerState<_AiAssistantSheet>
     _pulseCtrl.stop();
     _pulseCtrl.reset();
 
+    // Sprint 3.13 — short-circuit local para slash commands.
+    // Detecta intents conocidos (transfer/split/recurring/budget/goal/loan/undo)
+    // y los confirma sin llamar a Haiku → instantáneo + sin tokens.
+    final intent = AiIntentParser.parse(query);
+    final localResponse = _maybeLocalResponse(intent);
+    if (localResponse != null) {
+      if (!mounted) return;
+      setState(() {
+        _response = localResponse;
+        _state = _AssistantState.speaking;
+      });
+      await _tts.speak(localResponse);
+      return;
+    }
+
     // Get financial data
     final accounts = ref.read(accountsStreamProvider).valueOrNull ?? [];
     final transactions = ref.read(transactionsStreamProvider).valueOrNull ?? [];
@@ -142,6 +159,39 @@ class _AiAssistantSheetState extends ConsumerState<_AiAssistantSheet>
     });
 
     await _tts.speak(answer);
+  }
+
+  /// Confirmación local de slash commands. Por ahora muestra al usuario QUÉ se
+  /// reconoció (transparencia) sin ejecutar la acción — la ejecución completa
+  /// (crear tx/persona/etc.) requiere resolver cuentas/personas por hint y se
+  /// puede hacer iterativamente. Devuelve null cuando no es slash → fallback Haiku.
+  String? _maybeLocalResponse(AiIntent intent) {
+    return switch (intent) {
+      TransferIntent t =>
+        '✅ Transferencia: \$${t.amount.toStringAsFixed(0)}'
+            '${t.fromAccountHint != null ? ' desde ${t.fromAccountHint}' : ''}'
+            '${t.toAccountHint != null ? ' a ${t.toAccountHint}' : ''}.\n'
+            'Tocá Crear para confirmar (en breve).',
+      SplitIntent s =>
+        '✅ Gasto compartido: ${s.concept} \$${s.amount.toStringAsFixed(0)}'
+            '${s.peopleHints.isNotEmpty ? ' con ${s.peopleHints.join(", ")}' : ''}.\n'
+            'Tocá Crear para confirmar (en breve).',
+      RecurringIntent r =>
+        '✅ Recurrente: ${r.title} \$${r.amount.toStringAsFixed(0)} (${r.frequency}).\n'
+            'Tocá Crear para confirmar (en breve).',
+      BudgetIntent b =>
+        '✅ Presupuesto: ${b.categoryHint} \$${b.amount.toStringAsFixed(0)}.\n'
+            'Tocá Crear para confirmar (en breve).',
+      GoalIntent g =>
+        '✅ Meta: ${g.name} \$${g.target.toStringAsFixed(0)}'
+            '${g.deadline != null ? ' para ${g.deadline!.day}/${g.deadline!.month}/${g.deadline!.year}' : ''}.\n'
+            'Tocá Crear para confirmar (en breve).',
+      LoanIntent l =>
+        '✅ Préstamo a ${l.personHint}: \$${l.amount.toStringAsFixed(0)}.\n'
+            'Tocá Crear para confirmar (en breve).',
+      UndoIntent _ => '↩️ Próximamente: deshacer última acción.',
+      _ => null,  // ExpenseIntent / QuestionIntent → fallback a Haiku
+    };
   }
 
   Future<void> _sendTypedMessage() async {
@@ -309,6 +359,65 @@ class _AiAssistantSheetState extends ConsumerState<_AiAssistantSheet>
             style: TextStyle(color: Colors.white30, fontSize: 11),
           ),
 
+          // Sprint 3.15 — Chips contextuales (sólo cuando textfield vacío).
+          if (_textCtrl.text.isEmpty) ...[
+            const SizedBox(height: 12),
+            Builder(
+              builder: (context) {
+                final suggestions = ref.watch(aiSuggestionsProvider);
+                if (suggestions.isEmpty) return const SizedBox.shrink();
+                return SizedBox(
+                  height: 32,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: suggestions.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) {
+                      final s = suggestions[i];
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _textCtrl.text = s.input;
+                            _textCtrl.selection = TextSelection.collapsed(
+                              offset: _textCtrl.text.length,
+                            );
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color:
+                                  const Color(0xFF6C63FF).withValues(alpha: 0.30),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(s.emoji, style: const TextStyle(fontSize: 13)),
+                              const SizedBox(width: 5),
+                              Text(
+                                s.label,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFFD4CCFF),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
+
           // Text input fallback
           const SizedBox(height: 12),
           Row(
@@ -316,6 +425,7 @@ class _AiAssistantSheetState extends ConsumerState<_AiAssistantSheet>
               Expanded(
                 child: TextField(
                   controller: _textCtrl,
+                  onChanged: (_) => setState(() {}),  // refresca chips al tipear/borrar
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'O escribí tu consulta...',

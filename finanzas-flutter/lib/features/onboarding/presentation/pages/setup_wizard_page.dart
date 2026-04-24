@@ -14,9 +14,14 @@ import '../../../../core/providers/interactive_tour_provider.dart';
 import '../../../../core/providers/setup_wizard_provider.dart';
 import '../../../../core/services/notification_service.dart';
 
-/// Post-login setup wizard — collects basic data for new users.
-/// 6 steps: welcome/name → financial profile → credit cards → goal →
-/// notifications → completion (kicks off interactive tour).
+/// Post-login setup wizard — versión mínima (Sprint 2.10).
+///
+/// Antes: 6 pasos (name → income → cards → goal → notifications → complete).
+/// Ahora: 2 pasos (income+payday → complete).
+///
+/// Las tarjetas/goal/notifs/nombre se piden contextualmente cuando el usuario
+/// llega a la pantalla correspondiente (Cuentas/Goals/Settings/Profile),
+/// reduciendo el time-to-first-expense de ~180s a ~30-45s.
 class SetupWizardPage extends ConsumerStatefulWidget {
   const SetupWizardPage({super.key});
 
@@ -33,7 +38,8 @@ class _SetupWizardPageState extends ConsumerState<SetupWizardPage> {
   int _payDay = 1;
   bool? _hasCreditCards;
   String? _goal; // save / control / debt / invest
-  bool _notifsEnabled = true;
+  // Notifs por default ON; el toggle se ofrece en Settings post-onboarding.
+  final bool _notifsEnabled = true;
 
   @override
   void dispose() {
@@ -43,9 +49,12 @@ class _SetupWizardPageState extends ConsumerState<SetupWizardPage> {
     super.dispose();
   }
 
+  // Pasos visibles del wizard (mínimo): income → complete = 2
+  static const int _totalSteps = 2;
+
   void _next() {
     appHaptic(ref, type: HapticType.light);
-    if (_index < 5) {
+    if (_index < _totalSteps - 1) {
       setState(() => _index++);
       _pageController.animateToPage(_index,
           duration: const Duration(milliseconds: 350),
@@ -160,7 +169,7 @@ class _SetupWizardPageState extends ConsumerState<SetupWizardPage> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
-                            value: (_index + 1) / 6,
+                            value: (_index + 1) / _totalSteps,
                             backgroundColor: Colors.white.withValues(alpha: 0.08),
                             valueColor: const AlwaysStoppedAnimation(
                                 Color(0xFF6C63FF)),
@@ -189,23 +198,11 @@ class _SetupWizardPageState extends ConsumerState<SetupWizardPage> {
                     controller: _pageController,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      _StepWelcome(nameCtrl: _nameCtrl),
+                      // Sprint 2.10: solo 1 paso obligatorio (income+payday).
                       _StepIncome(
                         incomeCtrl: _incomeCtrl,
                         payDay: _payDay,
                         onPayDayChanged: (d) => setState(() => _payDay = d),
-                      ),
-                      _StepCreditCards(
-                        value: _hasCreditCards,
-                        onChanged: (v) => setState(() => _hasCreditCards = v),
-                      ),
-                      _StepGoal(
-                        value: _goal,
-                        onChanged: (v) => setState(() => _goal = v),
-                      ),
-                      _StepNotifications(
-                        value: _notifsEnabled,
-                        onChanged: (v) => setState(() => _notifsEnabled = v),
                       ),
                       _StepComplete(name: _nameCtrl.text.trim()),
                     ],
@@ -229,8 +226,8 @@ class _SetupWizardPageState extends ConsumerState<SetupWizardPage> {
                       Expanded(
                         flex: 2,
                         child: _NavButton(
-                          label: _index == 5 ? 'Empezar tour' : 'Siguiente',
-                          onTap: _index == 5 ? _finish : _next,
+                          label: _index == _totalSteps - 1 ? 'Empezar tour' : 'Listo',
+                          onTap: _index == _totalSteps - 1 ? _finish : _next,
                         ),
                       ),
                     ],

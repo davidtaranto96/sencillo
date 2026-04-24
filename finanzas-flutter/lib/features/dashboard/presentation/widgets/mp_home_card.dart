@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/mercado_pago_provider.dart';
+import '../../../../core/utils/format_utils.dart';
 
 /// Widget compacto para el Home que muestra info de Mercado Pago
 class MpHomeCard extends ConsumerWidget {
@@ -29,7 +29,6 @@ class _MpConnectedCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final balance = ref.watch(mpBalanceProvider);
     final movements = ref.watch(mpMovementsProvider);
-    final fmt = NumberFormat.currency(locale: 'es_AR', symbol: '\$');
 
     return GestureDetector(
       onTap: () => context.push('/mercado-pago'),
@@ -73,7 +72,7 @@ class _MpConnectedCard extends ConsumerWidget {
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    fmt.format(b.availableBalance),
+                    formatAmount(b.availableBalance),
                     style: GoogleFonts.inter(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -136,7 +135,7 @@ class _MpConnectedCard extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            '${isIncome ? '+' : ''}${fmt.format(m.amount)}',
+                            '${isIncome ? '+' : ''}${formatAmount(m.amount)}',
                             style: GoogleFonts.inter(
                               color: isIncome
                                   ? Colors.white

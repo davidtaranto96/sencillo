@@ -123,7 +123,7 @@ final smartAlertsProvider = Provider<List<AppAlert>>((ref) {
         type: AlertType.budgetExceeded,
         title: '${b.categoryName}: excedido',
         body:
-            'Gastaste \$${b.spentAmount.toInt().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} de \$${b.limitAmount.toInt().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} presupuestados.',
+            'Gastaste ${formatAmount(b.spentAmount)} de ${formatAmount(b.limitAmount)} presupuestados.',
         icon: Icons.warning_rounded,
         color: AppTheme.colorExpense,
       ));
@@ -134,7 +134,7 @@ final smartAlertsProvider = Provider<List<AppAlert>>((ref) {
         type: AlertType.budgetWarning,
         title: '${b.categoryName}: $pctInt% usado',
         body:
-            'Te queda \$${b.remaining.toInt().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} de presupuesto este mes.',
+            'Te queda ${formatAmount(b.remaining)} de presupuesto este mes.',
         icon: Icons.donut_large_rounded,
         color: AppTheme.colorWarning,
       ));

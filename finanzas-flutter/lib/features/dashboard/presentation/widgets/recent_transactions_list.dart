@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/transactions/domain/models/transaction.dart';
-import '../../../../features/transactions/presentation/widgets/add_transaction_bottom_sheet.dart' show kCategoryEmojis;
+import '../../../../features/transactions/presentation/widgets/add_transaction_bottom_sheet.dart' show kCategoryEmojis, AddTransactionBottomSheet;
 import '../../../../core/utils/format_utils.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class RecentTransactionsList extends StatelessWidget {
   final List<Transaction> transactions;
@@ -146,19 +147,18 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          Icon(Icons.receipt_long_outlined, size: 48, color: cs.onSurfaceVariant),
-          const SizedBox(height: 12),
-          Text(
-            'Sin movimientos aún',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-          ),
-        ],
+    return EmptyState(
+      variant: EmptyStateVariant.compact,
+      icon: Icons.auto_awesome_rounded,
+      title: 'Registrá tu primer gasto con IA',
+      description: 'Tocá el botón violeta y escribí en lenguaje natural.',
+      extraContent: const EmptyStateExampleChip(
+        text: 'café 3500',
+        leadingIcon: Icons.coffee_rounded,
       ),
+      ctaLabel: 'Abrir IA',
+      ctaIcon: Icons.auto_awesome_rounded,
+      onCta: () => AddTransactionBottomSheet.show(context),
     );
   }
 }

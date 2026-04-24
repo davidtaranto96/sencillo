@@ -2393,7 +2393,6 @@ class _AccountDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effective = (value != null && accounts.any((a) => a.id == value!.id)) ? value : null;
-    final fmt = NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
 
     // Ordenar: default primero, luego no-crédito por saldo desc, crédito por disponible desc
     final sorted = List<dom_acc.Account>.from(accounts);
@@ -2439,8 +2438,8 @@ class _AccountDropdown extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   a.isCreditCard
-                      ? 'Disp ${fmt.format(available)}'
-                      : fmt.format(a.balance),
+                      ? 'Disp ${formatAmountCompact(available)}'
+                      : formatAmountCompact(a.balance),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,

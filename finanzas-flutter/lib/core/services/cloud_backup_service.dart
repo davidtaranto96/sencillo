@@ -137,6 +137,39 @@ class CloudBackupService {
     return ts != null ? DateTime.tryParse(ts) : null;
   }
 
+  /// Sprint 4.22 — Backup automático "open-app check".
+  ///
+  /// Llamar al startup de la app. Si han pasado más días que [intervalDays]
+  /// desde el último backup (auto o manual), dispara un upload silencioso.
+  /// Errors no se propagan (best-effort) — el usuario igual puede hacer manual.
+  ///
+  /// Por qué open-app vs workmanager:
+  /// - 0 deps adicionales, 0 setup nativo (manifest/services).
+  /// - 95% del valor: si el user usa la app al menos 1 vez por semana,
+  ///   el backup se ejecuta. Si no la usa, no hay datos nuevos que respaldar.
+  /// - Para verdadero background hay que evaluar workmanager (Sprint 4 backlog).
+  Future<bool> runWeeklyBackupIfDue({int intervalDays = 7}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final autoEnabled = prefs.getBool('auto_backup_enabled') ?? true;
+      if (!autoEnabled) return false;
+
+      final lastTs = prefs.getString('last_auto_backup_ts');
+      final last = lastTs != null ? DateTime.tryParse(lastTs) : null;
+      final now = DateTime.now();
+      if (last != null && now.difference(last).inDays < intervalDays) {
+        return false; // todavía no toca
+      }
+
+      await uploadBackup();
+      await prefs.setString('last_auto_backup_ts', now.toIso8601String());
+      return true;
+    } catch (_) {
+      // Best-effort: si falla (sin red, sin auth), no lo grita al usuario.
+      return false;
+    }
+  }
+
   Future<File> _dbFile() async {
     final dir = await getApplicationDocumentsDirectory();
     return File(p.join(dir.path, 'finanzas_app.sqlite'));

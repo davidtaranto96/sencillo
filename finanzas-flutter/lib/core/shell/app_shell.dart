@@ -1,8 +1,11 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/services/cloud_backup_service.dart';
 
 import '../../core/database/database_providers.dart';
 import '../../core/providers/shell_providers.dart';
@@ -78,11 +81,36 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: 0);
     // Schedule notifications on app start + check for in-app alerts + MP auto-sync
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(notificationServiceProvider).refreshAll(ref);
-      ref.read(recurringServiceProvider).processRecurrings();
+
+      // Sprint 4.23 — Recurrentes con catch-up (ya implementado en
+      // processRecurrings: itera cada fecha pasada hasta hoy y crea cada tx).
+      // Si se crearon ≥1, mostramos un snackbar discreto.
+      final createdCount =
+          await ref.read(recurringServiceProvider).processRecurrings();
+      if (createdCount > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(createdCount == 1
+                ? 'Se registró 1 movimiento recurrente'
+                : 'Se registraron $createdCount movimientos recurrentes'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: AppTheme.colorTransfer.withValues(alpha: 0.9),
+          ),
+        );
+      }
+
       _checkInAppAlerts();
       _tryAutoSyncMercadoPago();
+
+      // Sprint 4.22 — Backup automático semanal (open-app check).
+      // Si el usuario está logueado en Firebase y pasaron >7 días desde el
+      // último backup auto, dispara uno silencioso. Errors no se propagan.
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        CloudBackupService(uid: user.uid).runWeeklyBackupIfDue();
+      }
 
       // Handle notification action taps (e.g. "Agregar gasto" from daily reminder)
       NotificationService.onActionTapped = (actionId) {
@@ -307,6 +335,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       showPageCoachIfNeeded(context, ref, tabId);
+      // Coach específico del FAB IA en home (primer toque al tab).
+      if (tabId == 'home') {
+        showPageCoachIfNeeded(context, ref, 'home_fab_ia');
+      }
     });
 
     // Sync with GoRouter for the 5 original branch tabs
@@ -578,6 +610,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
                       onPressed: fabAction ?? () {},
                       onLongPress: fabLongPress,
                       onDoubleTap: fabDoubleTap,
+                      // Solo el FAB del Home muestra label "Gasto rápido" — los
+                      // de otras tabs siguen icon-only para no inflar la UI.
+                      label: currentTabId == 'home' ? 'Gasto rápido' : null,
+                      semanticLabel: currentTabId == 'home'
+                          ? 'Registrar gasto con IA'
+                          : null,
                     ),
                   ),
                 ),

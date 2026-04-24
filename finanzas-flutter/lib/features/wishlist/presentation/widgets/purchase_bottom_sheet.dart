@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/database_providers.dart';
@@ -37,7 +36,6 @@ class _PurchaseBottomSheetState extends ConsumerState<PurchaseBottomSheet> {
   Widget build(BuildContext context) {
     final accounts = ref.watch(accountsStreamProvider).valueOrNull ?? [];
     final safeBudget = ref.watch(safeBudgetProvider);
-    final fmt = NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
     final cost = widget.item.estimatedCost;
     final overBudget = cost > safeBudget;
 
@@ -97,7 +95,7 @@ class _PurchaseBottomSheetState extends ConsumerState<PurchaseBottomSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              fmt.format(cost),
+              formatAmount(cost),
               style: GoogleFonts.inter(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
@@ -123,7 +121,7 @@ class _PurchaseBottomSheetState extends ConsumerState<PurchaseBottomSheet> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Supera tu presupuesto libre (${fmt.format(safeBudget)})',
+                        'Supera tu presupuesto libre (${formatAmount(safeBudget)})',
                         style: TextStyle(
                           color: AppTheme.colorExpense,
                           fontSize: 12,

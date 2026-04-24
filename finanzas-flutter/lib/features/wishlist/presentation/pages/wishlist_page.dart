@@ -21,6 +21,7 @@ import '../providers/wishlist_provider.dart';
 import '../widgets/add_wishlist_bottom_sheet.dart';
 import '../widgets/purchase_bottom_sheet.dart';
 import '../widgets/wishlist_budget_sheet.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class WishlistPage extends ConsumerWidget {
   /// [standalone] = true when pushed on top of the shell (from Más, router).
@@ -181,7 +182,6 @@ class _PriceDropBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -228,7 +228,7 @@ class _PriceDropBanner extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${fmt.format(d.oldPrice)} → ${fmt.format(d.newPrice)}',
+                  '${formatAmount(d.oldPrice)} → ${formatAmount(d.newPrice)}',
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -258,40 +258,14 @@ class _EmptyState extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       children: [
         _ShoppingBudgetCard(budget: shoppingBudget),
-        const SizedBox(height: 48),
-        Center(
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppTheme.colorWarning.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.shopping_cart_outlined,
-                    size: 48,
-                    color: AppTheme.colorWarning.withValues(alpha: 0.7)),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Tu lista está vacía',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Agregá algo que quieras comprar\npara tomar decisiones más inteligentes.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: Colors.white38,
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 32),
+        const EmptyState(
+          variant: EmptyStateVariant.full,
+          icon: Icons.shopping_cart_outlined,
+          title: 'Tu lista está vacía',
+          description:
+              'Agregá lo que querés comprar y la app calcula cuántas horas de trabajo te cuesta.',
+          accentColor: AppTheme.colorWarning,
         ),
       ],
     );
@@ -311,9 +285,6 @@ class _ShoppingBudgetCard extends ConsumerWidget {
       final limit = budget!.limitAmount;
       final progress = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
       final remaining = (limit - spent).clamp(0.0, double.infinity);
-      final fmt = NumberFormat.currency(
-          symbol: '\$', decimalDigits: 0, locale: 'es_AR');
-
       return GestureDetector(
         onTap: () =>
             ref.read(navigateToTabProvider.notifier).state = 'budget',
@@ -358,7 +329,7 @@ class _ShoppingBudgetCard extends ConsumerWidget {
                             fontSize: 12,
                             fontWeight: FontWeight.w600)),
                     Text(
-                      '${fmt.format(spent)} / ${fmt.format(limit)}',
+                      '${formatAmount(spent)} / ${formatAmount(limit)}',
                       style: TextStyle(
                         color: Colors.white38,
                         fontSize: 11,
@@ -368,7 +339,7 @@ class _ShoppingBudgetCard extends ConsumerWidget {
                 ),
               ),
               Text(
-                fmt.format(remaining),
+                formatAmount(remaining),
                 style: TextStyle(
                   color: remaining > 0
                       ? AppTheme.colorIncome
@@ -550,8 +521,6 @@ class _WishlistCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fmt = NumberFormat.compactCurrency(
-        symbol: '\$', decimalDigits: 1, locale: 'es_AR');
     final now = DateTime.now();
     final daysPassed = now.difference(item.createdAt).inDays;
     final effectiveReminderDays = item.reminderDays ?? globalReminderDays;
@@ -685,7 +654,7 @@ class _WishlistCard extends ConsumerWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      fmt.format(item.estimatedCost),
+                      formatAmount(item.estimatedCost),
                       style: GoogleFonts.inter(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
@@ -709,7 +678,7 @@ class _WishlistCard extends ConsumerWidget {
                     children: [
                       if (item.installments > 1)
                         Text(
-                          '${item.installments} cuotas de ${NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(item.estimatedCost / item.installments)}',
+                          '${item.installments} cuotas de ${formatAmount(item.estimatedCost / item.installments)}',
                           style: TextStyle(color: Colors.white38, fontSize: 12),
                         ),
                       if (item.installments > 1 && item.hasPromo)
@@ -870,7 +839,6 @@ class _PriceHistoryButton extends ConsumerWidget {
 
 void _showPriceHistorySheet(BuildContext context, WidgetRef ref, WishlistItem item) {
   final ctrl = TextEditingController();
-  final fmt = NumberFormat.compactCurrency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
   final dateFmt = DateFormat('dd/MM', 'es');
 
   showModalBottomSheet(
@@ -917,9 +885,9 @@ void _showPriceHistorySheet(BuildContext context, WidgetRef ref, WishlistItem it
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _StatCol('Mínimo', fmt.format(history!.lowestPrice!), const Color(0xFF4CAF50)),
-                      _StatCol('Último', fmt.format(history.latestPrice!), Colors.white70),
-                      _StatCol('Máximo', fmt.format(history.highestPrice!), AppTheme.colorExpense),
+                      _StatCol('Mínimo', formatAmount(history!.lowestPrice!), const Color(0xFF4CAF50)),
+                      _StatCol('Último', formatAmount(history.latestPrice!), Colors.white70),
+                      _StatCol('Máximo', formatAmount(history.highestPrice!), AppTheme.colorExpense),
                     ],
                   ),
                 ),
@@ -944,7 +912,7 @@ void _showPriceHistorySheet(BuildContext context, WidgetRef ref, WishlistItem it
                           children: [
                             Text(dateFmt.format(e.date), style: TextStyle(color: Colors.white30, fontSize: 12)),
                             const SizedBox(width: 12),
-                            Text(fmt.format(e.price), style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                            Text(formatAmount(e.price), style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
                             if (diff != null && diff != 0) ...[
                               const SizedBox(width: 8),
                               Icon(
@@ -953,7 +921,7 @@ void _showPriceHistorySheet(BuildContext context, WidgetRef ref, WishlistItem it
                                 size: 20,
                               ),
                               Text(
-                                fmt.format(diff.abs()),
+                                formatAmount(diff.abs()),
                                 style: TextStyle(
                                   color: diff < 0 ? const Color(0xFF4CAF50) : AppTheme.colorExpense,
                                   fontSize: 11,
@@ -1021,7 +989,7 @@ void _showPriceHistorySheet(BuildContext context, WidgetRef ref, WishlistItem it
                         ctrl.clear();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Precio registrado: ${fmt.format(val)}'),
+                            content: Text('Precio registrado: ${formatAmount(val)}'),
                             backgroundColor: AppTheme.colorWarning.withValues(alpha: 0.8),
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

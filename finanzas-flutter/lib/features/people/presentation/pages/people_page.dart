@@ -22,6 +22,7 @@ import '../../../transactions/presentation/pages/transaction_detail_page.dart';
 import 'add_expense_page.dart';
 import 'person_detail_page.dart';
 import 'group_detail_page.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class PeoplePage extends ConsumerStatefulWidget {
   /// [standalone] = true when pushed on top of the shell (from Más, router).
@@ -984,29 +985,16 @@ class _FriendsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (people.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.people_outline_rounded,
-                size: 48, color: Colors.white.withValues(alpha: 0.15)),
-            const SizedBox(height: 12),
-            const Text('Sin amigos todavía',
-                style: TextStyle(
-                    color: Colors.white38,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500)),
-            const SizedBox(height: 4),
-            const Text('Agregá personas para compartir gastos',
-                style: TextStyle(color: Colors.white24, fontSize: 13)),
-            const SizedBox(height: 20),
-            TextButton.icon(
-              onPressed: () => showAddPersonSheet(context, ref),
-              icon: const Icon(Icons.person_add_rounded, size: 18),
-              label: const Text('Agregar amigo'),
-              style: TextButton.styleFrom(foregroundColor: AppTheme.colorTransfer),
-            ),
-          ],
+      return EmptyState(
+        variant: EmptyStateVariant.full,
+        icon: Icons.people_outline_rounded,
+        title: 'Dividí gastos con amigos',
+        description: 'Agregá personas y la app calcula quién debe cuánto, sin discusiones.',
+        ctaLabel: 'Agregar amigo',
+        ctaIcon: Icons.person_add_rounded,
+        onCta: () => showAddPersonSheet(context, ref),
+        extraContent: const EmptyStateExampleChip(
+          text: 'Cena \$12.000 ÷ 3 = \$4.000 c/u',
         ),
       );
     }

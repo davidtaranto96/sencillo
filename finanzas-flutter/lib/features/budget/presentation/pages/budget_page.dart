@@ -12,6 +12,7 @@ import '../../../transactions/domain/models/transaction.dart' as dom_tx;
 import '../../domain/models/budget.dart';
 import '../providers/budget_provider.dart';
 import '../widgets/add_budget_bottom_sheet.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class BudgetPage extends ConsumerStatefulWidget {
   /// [standalone] = true when pushed above the shell (from Más).
@@ -898,42 +899,23 @@ class _EmptyBudget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                color: cs.outlineVariant.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.donut_large_outlined, size: 36, color: cs.outlineVariant.withValues(alpha: 0.5)),
-            ),
-            const SizedBox(height: 20),
-            Text('Sin presupuestos', style: GoogleFonts.inter(
-                fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text(
-              'Defini limites por categoria\npara controlar tus gastos.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 13, color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Crear presupuesto'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.colorTransfer,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-            ),
-          ],
-        ),
+    return EmptyState(
+      variant: EmptyStateVariant.full,
+      icon: Icons.donut_large_outlined,
+      title: 'Creá un presupuesto',
+      description: 'Sencillo te avisa si te pasás del límite de cada categoría.',
+      ctaLabel: 'Crear presupuesto',
+      ctaIcon: Icons.add_rounded,
+      onCta: onAdd,
+      extraContent: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: const [
+          EmptyStateExampleChip(text: '🍴 Comida \$80k'),
+          EmptyStateExampleChip(text: '🚗 Transporte \$30k'),
+          EmptyStateExampleChip(text: '📺 Suscripciones \$15k'),
+        ],
       ),
     );
   }

@@ -574,7 +574,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     const SizedBox(height: 8),
 
                     Text(
-                      'v1.8.1',
+                      'v1.9.0',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         color: Colors.white.withValues(alpha: 0.08),
@@ -707,8 +707,6 @@ class _LoginOption extends StatelessWidget {
   final String sublabel;
   final List<Color> gradient;
   final Color borderColor;
-  final bool compact;
-
   const _LoginOption({
     required this.onTap,
     required this.icon,
@@ -717,14 +715,13 @@ class _LoginOption extends StatelessWidget {
     required this.gradient,
     required this.borderColor,
     this.iconAsset,
-    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: compact ? 48 : 56,
+      height: 56,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -763,18 +760,17 @@ class _LoginOption extends StatelessWidget {
                         Text(
                           label,
                           style: GoogleFonts.quicksand(
-                            fontSize: compact ? 13 : 14,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
-                        if (!compact)
-                          Text(
-                            sublabel,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.35),
-                            ),
+                        Text(
+                          sublabel,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.35),
+                          ),
                           ),
                       ],
                     ),

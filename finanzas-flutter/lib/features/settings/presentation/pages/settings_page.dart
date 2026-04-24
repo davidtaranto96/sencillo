@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/backup_utils.dart';
@@ -717,8 +716,6 @@ class _ProfileCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileStreamProvider);
     final profile = profileAsync.valueOrNull;
-    final fmt = NumberFormat.currency(
-        symbol: '\$', decimalDigits: 0, locale: 'es_AR');
 
     final name = profile?.name?.isNotEmpty == true ? profile!.name! : '';
     final hasSalary = profile?.monthlySalary != null;
@@ -785,7 +782,7 @@ class _ProfileCard extends ConsumerWidget {
                         if (hasSalary)
                           _ProfileChip(
                             icon: Icons.payments_rounded,
-                            label: fmt.format(profile!.monthlySalary),
+                            label: formatAmount(profile!.monthlySalary ?? 0),
                           ),
                         if (hasPayDay)
                           _ProfileChip(

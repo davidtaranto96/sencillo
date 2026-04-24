@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/providers/onboarding_provider.dart';
+import 'ai_demo_page.dart';
 
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
@@ -22,52 +23,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   late final AnimationController _floatCtrl;
   late final AnimationController _glowCtrl;
 
+  // Sprint 2.8: 6 slides → 1 welcome único.
+  // El reporte mostró que el 80%+ de usuarios saltean los slides; el welcome
+  // único + demo IA + setup mínimo lleva al primer gasto en <60s vs ~180s antes.
   static const _slides = [
     _Slide(
-      icon: Icons.waving_hand_rounded,
-      title: 'Bienvenido a Sencillo',
-      description:
-          'Tu plata, organizada.\nControlá gastos, ahorrá con metas y dividí cuentas con amigos. Todo en un solo lugar.',
-      color: Color(0xFF6C63FF),
-      iconBg: Color(0xFF6C63FF),
-    ),
-    _Slide(
-      icon: Icons.add_circle_outline_rounded,
-      title: 'Registrá tus gastos',
-      description:
-          'Tocá el botón + para cargar un gasto o ingreso.\nElegí la categoría, el monto y la cuenta. Tarda menos de 5 segundos.',
-      color: Color(0xFFFF6B6B),
-      iconBg: Color(0xFFFF6B6B),
-    ),
-    _Slide(
-      icon: Icons.account_balance_wallet_rounded,
-      title: 'Tus cuentas',
-      description:
-          'Agregá tus cuentas: efectivo, banco, tarjetas de crédito.\nCada una muestra su saldo real y sus movimientos.',
-      color: Color(0xFF4ECDC4),
-      iconBg: Color(0xFF4ECDC4),
-    ),
-    _Slide(
       icon: Icons.savings_rounded,
-      title: 'Presupuestos y metas',
+      title: 'Tus finanzas, sin complicaciones',
       description:
-          'Poné límites de gasto mensuales por categoría.\nCreá metas de ahorro y seguí tu progreso hasta cumplirlas.',
-      color: Color(0xFFFFB347),
-      iconBg: Color(0xFFFFB347),
-    ),
-    _Slide(
-      icon: Icons.people_rounded,
-      title: 'Gastos compartidos',
-      description:
-          'Dividí cuentas con amigos o familia.\nLa app calcula quién debe cuánto y podés liquidar deudas fácilmente.',
-      color: Color(0xFFFF8C69),
-      iconBg: Color(0xFFFF8C69),
-    ),
-    _Slide(
-      icon: Icons.auto_awesome_rounded,
-      title: '¡Listo para empezar!',
-      description:
-          'Empezá cargando tu primer gasto.\nPodés personalizar todo desde Configuración cuando quieras.',
+          'Cargá un gasto en lenguaje natural y la IA lo categoriza sola.\nDividí con amigos, ahorrá con metas, controlá tarjetas. Todo en un solo lugar.',
       color: Color(0xFF6C63FF),
       iconBg: Color(0xFF6C63FF),
     ),
@@ -95,14 +59,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   }
 
   void _next() {
-    if (_currentPage < _slides.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeInOutCubicEmphasized,
-      );
-    } else {
-      _finish();
-    }
+    // Sprint 2.8/2.9: welcome único → AI demo (no salta directo a finish).
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AiDemoPage()),
+    );
   }
 
   void _finish() {
@@ -242,46 +202,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                   ),
                 ),
 
-                // Indicators + CTA
+                // CTAs (welcome único, sin paginación)
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                       32, 20, 32, MediaQuery.of(context).padding.bottom + 28),
                   child: Column(
                     children: [
-                      // Page counter
-                      Text(
-                        '${_currentPage + 1} / ${_slides.length}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.3),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Dot indicators
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          _slides.length,
-                          (i) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: i == _currentPage ? 24 : 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: i == _currentPage
-                                  ? slide.color
-                                  : Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // CTA button
+                      // CTA primary: arrancá ahora
                       GestureDetector(
                         onTap: _next,
                         child: AnimatedContainer(
@@ -305,17 +232,30 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                             ],
                           ),
                           child: Center(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Text(
-                                isLast ? '¡Empezar!' : 'Siguiente',
-                                key: ValueKey(isLast),
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
+                            child: Text(
+                              'Empezá ahora',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      // CTA secondary: tengo backup
+                      GestureDetector(
+                        onTap: _finish, // mismo flujo, después puede ir a restore desde login
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Ya tengo cuenta · Restaurar backup',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.55),
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ),

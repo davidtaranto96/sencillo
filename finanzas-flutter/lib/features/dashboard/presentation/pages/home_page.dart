@@ -33,6 +33,8 @@ import '../../../../core/widgets/select_sheets.dart';
 import '../../../../core/providers/currency_provider.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/logic/data_integrity_service.dart';
+import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/tint_card.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -66,7 +68,8 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
     required BuildContext context,
     required WidgetRef ref,
     required MonthlyBalance monthlyStats,
-    required double safeBudget,
+    required double liquidCash,
+    required double projectedBudget,
     required double arsCash,
     required double pendingCards,
     required double totalCardDebt,
@@ -88,7 +91,8 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
         BalanceHeroCard(
           key: TourKeys.balanceCard,
           balance: monthlyStats,
-          safeBudget: safeBudget,
+          liquidCash: liquidCash,
+          projectedBudget: projectedBudget,
           arsCash: arsCash,
           pendingCards: pendingCards,
           totalCardDebt: totalCardDebt,
@@ -129,34 +133,29 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
       'debts': [
         if (pendingToRecover > 0) ...[
           gap,
-          GestureDetector(
+          TintCard(
+            color: AppTheme.colorWarning,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            radius: 14,
             onTap: () {
               ref.read(navigateToTabProvider.notifier).state = 'people';
             },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.colorWarning.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.colorWarning.withValues(alpha: 0.15)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.people_outline_rounded, color: AppTheme.colorWarning, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Te deben ${formatAmount(pendingToRecover)}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white70,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+            child: Row(
+              children: [
+                Icon(Icons.people_outline_rounded, color: AppTheme.colorWarning, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Te deben ${formatAmount(pendingToRecover)}',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
-                ],
-              ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondaryDark, size: 18),
+              ],
             ),
           ),
         ],
@@ -246,56 +245,19 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
               return Scaffold(
                 body: SafeArea(
                   child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: AppTheme.colorTransfer.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.account_balance_wallet_outlined,
-                                size: 56,
-                                color: AppTheme.colorTransfer.withValues(alpha: 0.8)),
-                          ),
-                          const SizedBox(height: 28),
-                          Text('¡Bienvenido!',
-                              style: GoogleFonts.inter(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white)),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Empezá agregando tu primera cuenta para ver tu resumen financiero.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                                fontSize: 15, color: cs.onSurfaceVariant),
-                          ),
-                          const SizedBox(height: 32),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: FilledButton.icon(
-                              onPressed: () => context.push('/accounts'),
-                              icon: const Icon(Icons.add_rounded),
-                              label: const Text('Agregar cuenta'),
-                              style: FilledButton.styleFrom(
-                                  backgroundColor: AppTheme.colorTransfer),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'También podés ir a Movimientos para registrar tu primer gasto',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
-                          ),
-                        ],
-                      ),
+                    child: EmptyState(
+                      variant: EmptyStateVariant.full,
+                      icon: Icons.account_balance_wallet_outlined,
+                      title: '¡Bienvenido!',
+                      description:
+                          'Empezá agregando tu primera cuenta para ver tu resumen financiero.',
+                      ctaLabel: 'Agregar cuenta',
+                      ctaIcon: Icons.add_rounded,
+                      onCta: () => context.push('/accounts'),
+                      secondaryCtaLabel: 'Registrar primer gasto',
+                      secondaryCtaIcon: Icons.auto_awesome_rounded,
+                      onSecondaryCta: () =>
+                          ref.read(navigateToTabProvider.notifier).state = 'transactions',
                     ),
                   ),
                 ),
@@ -328,7 +290,11 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
             final totalCardDebt = accounts
                 .where((a) => a.isCreditCard)
                 .fold(0.0, (sum, a) => sum + a.totalDebt);
-            final safeBudget = arsCash + foreignCashArs - pendingCards;
+            // Disponible REAL: dinero líquido sin descontar tarjetas pendientes.
+            // Es lo que el usuario realmente tiene HOY.
+            final liquidCash = arsCash + foreignCashArs;
+            // Proyección a fin de mes restando lo que vas a pagar de tarjeta.
+            final projectedBudget = liquidCash - pendingCards;
             
             // Calculate real MonthlyBalance for widgets
             final now = DateTime.now();
@@ -428,7 +394,8 @@ class _HomePageState extends ConsumerState<HomePage> with AutomaticKeepAliveClie
                               context: context,
                               ref: ref,
                               monthlyStats: monthlyStats,
-                              safeBudget: safeBudget,
+                              liquidCash: liquidCash,
+                              projectedBudget: projectedBudget,
                               arsCash: arsCash,
                               pendingCards: pendingCards,
                               totalCardDebt: totalCardDebt,
@@ -757,14 +724,13 @@ class _PaydayCountdown extends StatelessWidget {
     final now = DateTime.now();
     final payDay = profile.payDay!;
     final salary = profile.monthlySalary;
-    final fmt = NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR');
 
     // Calculate next payday
     DateTime nextPayday = DateTime(now.year, now.month, payDay.clamp(1, 28));
     if (nextPayday.isBefore(now) || nextPayday.isAtSameMomentAs(now)) {
       // If today IS payday, show special message
       if (now.day == payDay) {
-        return _buildPaydayBanner(salary, fmt);
+        return _buildPaydayBanner(salary);
       }
       // Otherwise, next month
       nextPayday = DateTime(now.year, now.month + 1, payDay.clamp(1, 28));
@@ -775,13 +741,9 @@ class _PaydayCountdown extends StatelessWidget {
     final isClose = daysLeft <= 3;
     final color = isClose ? AppTheme.colorIncome : AppTheme.colorTransfer;
 
-    return Container(
+    return TintCard(
+      color: color,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
       child: Row(
         children: [
           Icon(Icons.calendar_month_rounded, color: color, size: 22),
@@ -800,8 +762,8 @@ class _PaydayCountdown extends StatelessWidget {
                 ),
                 if (salary != null)
                   Text(
-                    'Ingreso esperado: ${fmt.format(salary)}',
-                    style: GoogleFonts.inter(fontSize: 12, color: Colors.white54),
+                    'Ingreso esperado: ${formatAmount(salary)}',
+                    style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondaryDark),
                   ),
               ],
             ),
@@ -809,7 +771,7 @@ class _PaydayCountdown extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.20),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -826,7 +788,7 @@ class _PaydayCountdown extends StatelessWidget {
     );
   }
 
-  Widget _buildPaydayBanner(double? salary, NumberFormat fmt) {
+  Widget _buildPaydayBanner(double? salary) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -852,7 +814,7 @@ class _PaydayCountdown extends StatelessWidget {
                 ),
                 if (salary != null)
                   Text(
-                    'Ingreso: ${fmt.format(salary)}',
+                    'Ingreso: ${formatAmount(salary)}',
                     style: GoogleFonts.inter(fontSize: 12, color: Colors.white54),
                   ),
               ],

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/format_utils.dart';
 import '../../../transactions/domain/models/transaction.dart' as dom_tx;
+import 'daily_spending_message.dart';
 
 enum _SpendingPeriod { today, week, month }
 
@@ -264,16 +265,19 @@ class _DailySpendingCardState extends State<DailySpendingCard> {
             ),
           ],
 
-          // ── Empty state ──
+          // ── Empty state contextual ──
           if (txCount == 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Text(
-                _period == _SpendingPeriod.today
-                    ? 'No gastaste nada hoy 🎉'
-                    : 'Sin gastos en este período',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.white24),
-              ),
+              child: _period == _SpendingPeriod.today
+                  ? DailySpendingMessage(transactions: widget.transactions)
+                  : Text(
+                      'Sin gastos en este período',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textSecondaryDark,
+                      ),
+                    ),
             ),
 
           const SizedBox(height: 14),

@@ -4,12 +4,18 @@ import '../../../../core/providers/mock_data_provider.dart';
 import '../../../../core/utils/format_utils.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
+import '../../../../shared/widgets/tint_card.dart';
 
-enum _HeroView { disponible, efectivo, deuda }
+enum _HeroView { disponible, proyectado, efectivo, deuda }
 
 class BalanceHeroCard extends StatefulWidget {
   final MonthlyBalance balance;
-  final double safeBudget;
+  /// Disponible REAL: dinero líquido en cuentas (no descuenta tarjetas pendientes).
+  /// Equivale a `arsCash + foreignCashArs`.
+  final double liquidCash;
+  /// Proyección a fin de mes restando deudas de tarjeta. Equivale al
+  /// `safeBudget` antiguo (`arsCash + foreignCashArs - pendingCards`).
+  final double projectedBudget;
   final double arsCash;
   final double pendingCards;
   final double totalCardDebt;
@@ -21,7 +27,8 @@ class BalanceHeroCard extends StatefulWidget {
   const BalanceHeroCard({
     super.key,
     required this.balance,
-    required this.safeBudget,
+    required this.liquidCash,
+    required this.projectedBudget,
     required this.arsCash,
     required this.pendingCards,
     this.totalCardDebt = 0,
@@ -41,7 +48,9 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
   double get _mainValue {
     switch (_view) {
       case _HeroView.disponible:
-        return widget.safeBudget;
+        return widget.liquidCash;
+      case _HeroView.proyectado:
+        return widget.projectedBudget;
       case _HeroView.efectivo:
         return widget.arsCash;
       case _HeroView.deuda:
@@ -53,6 +62,8 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
     switch (_view) {
       case _HeroView.disponible:
         return 'Disponible';
+      case _HeroView.proyectado:
+        return 'Proyectado';
       case _HeroView.efectivo:
         return 'Efectivo total';
       case _HeroView.deuda:
@@ -80,28 +91,17 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
             ? AppTheme.colorWarning
             : AppTheme.colorExpense;
 
-    final isNegative = _view == _HeroView.deuda ? false : _mainValue < 0;
+    // Rojo SOLO cuando el dinero líquido real es negativo (sobregiro real),
+    // NO cuando la proyección es negativa (clásico fin de mes con tarjetas pendientes).
+    final isAlarmingNegative = _view == _HeroView.disponible && _mainValue < 0;
     final valueColor = _view == _HeroView.deuda
         ? AppTheme.colorExpense
-        : (isNegative ? AppTheme.colorExpense : cs.onSurface);
+        : (isAlarmingNegative ? AppTheme.colorExpense : cs.onSurface);
+    final showProjectedHint = _view == _HeroView.disponible &&
+        widget.projectedBudget != widget.liquidCash;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.primary.withValues(alpha: 0.15),
-            cs.surfaceContainerHigh,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.25),
-          width: 1.5,
-        ),
-      ),
+    return TintCardHero(
+      color: cs.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -128,6 +128,25 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
                               fontWeight: FontWeight.w600,
                             ),
                       ),
+                      if (_view == _HeroView.proyectado) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppTheme.colorWarning.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Estimado',
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.colorWarning,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 4),
                       Icon(Icons.swap_horiz_rounded, size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.7)),
                     ],
@@ -155,6 +174,28 @@ class _BalanceHeroCardState extends State<BalanceHeroCard> {
               ),
             ),
           ),
+          if (showProjectedHint) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.timeline_rounded,
+                  size: 12,
+                  color: AppTheme.textSecondaryDark,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Proyectado fin de mes: ${formatAmount(widget.projectedBudget)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppTheme.textSecondaryDark,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           AppProgressBar(
             value: savingsRate,

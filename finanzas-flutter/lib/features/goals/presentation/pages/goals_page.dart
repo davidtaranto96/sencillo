@@ -8,6 +8,7 @@ import '../../../../core/utils/format_utils.dart';
 import '../../domain/models/goal.dart';
 import '../providers/goals_provider.dart';
 import '../widgets/add_goal_bottom_sheet.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class GoalsPage extends ConsumerStatefulWidget {
   const GoalsPage({super.key});
@@ -1073,42 +1074,23 @@ class _EmptyGoals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.flag_outlined,
-                size: 64,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
-            const SizedBox(height: 20),
-            Text('Sin objetivos',
-                style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-            const SizedBox(height: 8),
-            Text(
-              'Creá una meta de ahorro para seguir tu progreso.',
-              textAlign: TextAlign.center,
-              style:
-                  GoogleFonts.inter(fontSize: 14, color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 28),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Crear objetivo'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.colorTransfer,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
-              ),
-            ),
-          ],
-        ),
+    return EmptyState(
+      variant: EmptyStateVariant.full,
+      icon: Icons.flag_outlined,
+      title: '¿Cuál es tu próximo objetivo?',
+      description: 'Creá una meta de ahorro y seguí tu progreso hasta cumplirla.',
+      ctaLabel: 'Crear objetivo',
+      ctaIcon: Icons.add_rounded,
+      onCta: onAdd,
+      extraContent: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: const [
+          EmptyStateExampleChip(text: '🌴 Viaje', leadingIcon: null),
+          EmptyStateExampleChip(text: '🛟 Emergencia'),
+          EmptyStateExampleChip(text: '💻 Tecnología'),
+        ],
       ),
     );
   }

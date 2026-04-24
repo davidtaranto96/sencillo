@@ -25,11 +25,71 @@ class NovedadesPage extends StatelessWidget {
           _CurrentVersionBanner(),
           const SizedBox(height: 20),
 
-          // v1.8.1 — actual
+          // 🔮 Roadmap — futuros features
+          const _RoadmapCard(),
+          const SizedBox(height: 20),
+
+          // v1.9.0 — actual
+          _VersionCard(
+            version: 'v1.9.0',
+            date: '24 Abr 2026',
+            isCurrent: true,
+            items: const [
+              // 🐛 Fix crítico
+              _ChangeItem(icon: Icons.bug_report_rounded, text: 'Fix crítico: pantalla en rojo gigante al cambiar entre tabs (Home → Movimientos / Presupuestos / Amigos / Más). Era el FAB extended cuando intentaba interpolar tamaños — resuelto con constraints finitos', type: _ChangeType.fix),
+
+              // ✨ FAB IA mejorado
+              _ChangeItem(icon: Icons.auto_awesome_rounded, text: 'FAB del Home ahora dice "✨ Gasto rápido" (extended) para que se entienda que es la IA. En otros tabs sigue siendo icon-only', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.school_rounded, text: 'Nueva guía visual al entrar al Home por primera vez explica los 3 gestos del FAB: tap (texto), long-press (voz), doble tap (duplicar último)', type: _ChangeType.feature),
+
+              // 🎨 Estética nueva del Home
+              _ChangeItem(icon: Icons.palette_rounded, text: 'Cards del Home rediseñadas con efecto "tinted glass" — gradient suave de color sobre superficie translúcida (basado en prototipo de Claude Design)', type: _ChangeType.improvement),
+
+              // 💰 Balance Home más honesto
+              _ChangeItem(icon: Icons.account_balance_wallet_rounded, text: 'Balance principal ahora muestra "Disponible real" (líquido en cuentas) por default, no la proyección con tarjetas restadas. Si querés ver la proyección, está como segunda vista con badge "Estimado"', type: _ChangeType.improvement),
+              _ChangeItem(icon: Icons.warning_amber_rounded, text: 'Rojo en el balance solo cuando el dinero líquido REAL es negativo (sobregiro). Antes salía rojo enorme cualquier mes que tuvieras gastado más del cash actual con tarjetas pendientes', type: _ChangeType.fix),
+
+              // 🔍 Filtros movimientos colapsados
+              _ChangeItem(icon: Icons.tune_rounded, text: 'Movimientos: 2 filas de filtros colapsadas a 1 sola — nav de mes "< Abril 2026 >" + chip "Filtros (N)" que abre bottom sheet con tipo + cuenta', type: _ChangeType.improvement),
+
+              // 🆕 Empty states con CTA
+              _ChangeItem(icon: Icons.touch_app_rounded, text: 'Empty states reutilizables con CTA accionable en Home, Movimientos, Presupuestos, Metas, Amigos, Wishlist, Notificaciones — siempre te ofrecen el siguiente paso', type: _ChangeType.feature),
+
+              // 💵 Formato moneda
+              _ChangeItem(icon: Icons.attach_money_rounded, text: 'Formato de moneda unificado en TODAS las pantallas (Settings, Mercado Pago, Reports, Wishlist, MP card). Antes había mezclados "\$ 1.234,00" y "\$1.234"', type: _ChangeType.improvement),
+
+              // ♿ Contraste AA
+              _ChangeItem(icon: Icons.contrast_rounded, text: 'Mejorado contraste de textos secundarios — ahora cumplen WCAG AA (4.5:1). Los grises tenues eran ilegibles para algunos usuarios', type: _ChangeType.improvement),
+
+              // 🎉 Mensajes contextuales
+              _ChangeItem(icon: Icons.celebration_rounded, text: 'Card "Gastos del día" ahora muestra mensaje contextual: "Aún sin gastos hoy" antes de las 20hs, "🎉 Día sin gastos" después, y "🔥 N días sin gastar" + confetti solo en streaks de 3+ días. Antes celebraba a las 9am (raro)', type: _ChangeType.improvement),
+
+              // 🚀 Onboarding rediseñado
+              _ChangeItem(icon: Icons.rocket_launch_rounded, text: 'Onboarding nuevo en 3 pasos en lugar de 6: welcome único → Demo IA con ghost text "café 3.500" → setup mínimo (sueldo + día de cobro). Tiempo hasta primer gasto bajó de ~180s a ~60s', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.smart_toy_rounded, text: 'Demo IA obligatoria en el onboarding muestra cómo la IA detecta categoría/monto/cuenta desde "café 3.500" — sin pegarle a la API real', type: _ChangeType.feature),
+
+              // 🤖 IA expandida
+              _ChangeItem(icon: Icons.terminal_rounded, text: 'Slash commands en el textbox IA: /transfer, /split, /recurring, /budget, /goal, /loan, /undo. Se reconocen localmente sin pegarle a Haiku → respuesta instantánea', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.translate_rounded, text: 'Diccionario AR de comercios (~150 entries): Coto/Disco/Jumbo→Súper, SUBE/Uber/YPF→Transporte, Rappi/PedidosYa→Delivery, Netflix/Spotify→Suscripciones, Edesur/Movistar→Servicios, etc. Detecta categoría sin IA', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.psychology_rounded, text: 'Chips contextuales arriba del textbox IA cuando está vacío — sugieren "Sueldo" si hoy es día de cobro, "Salida" viernes/sábado >19hs, top categorías de los últimos 30 días', type: _ChangeType.feature),
+              _ChangeItem(icon: Icons.help_outline_rounded, text: 'Modo pregunta con "?" o verbos interrogativos ("cuánto gasté", "cuándo cobro") → análisis conversacional con Haiku', type: _ChangeType.feature),
+
+              // 🔔 Notif diaria mejorada
+              _ChangeItem(icon: Icons.notifications_active_rounded, text: 'Recordatorio nocturno con copy más actionable: "¿Qué gastaste hoy? Tocá para escribirlo rápido — la IA categoriza solo"', type: _ChangeType.improvement),
+
+              // ☁️ Backup auto
+              _ChangeItem(icon: Icons.cloud_upload_rounded, text: 'Backup automático semanal: si pasaron 7+ días desde el último backup y estás logueado, se ejecuta silencioso al abrir la app', type: _ChangeType.feature),
+
+              // ↻ Recurrentes catch-up
+              _ChangeItem(icon: Icons.repeat_on_rounded, text: 'Recurrentes con catch-up + snackbar de feedback: si no abriste la app por días, los recurrentes pendientes se crean al abrir y te avisamos cuántos se registraron', type: _ChangeType.improvement),
+            ],
+          ),
+
+          // v1.8.1
           _VersionCard(
             version: 'v1.8.1',
             date: '22 Abr 2026',
-            isCurrent: true,
+            isCurrent: false,
             items: const [
               _ChangeItem(icon: Icons.bug_report_rounded, text: 'Fix crítico: gastos compartidos ya no duplican la deuda en la cuenta (bug que mostraba \$1.022.000 cuando gastabas \$511.000)', type: _ChangeType.fix),
               _ChangeItem(icon: Icons.healing_rounded, text: 'Reparación automática al hacer pull-to-refresh: corrige balances y totales de grupos afectados por el bug anterior', type: _ChangeType.fix),
@@ -719,7 +779,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                         border: Border.all(color: AppTheme.colorTransfer.withValues(alpha: 0.35)),
                       ),
                       child: Text(
-                        'v1.8.1',
+                        'v1.9.0',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -732,7 +792,7 @@ class _CurrentVersionBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Version actual · 22 de Abril 2026',
+                  'Version actual · 24 de Abril 2026',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Colors.white38,
@@ -762,6 +822,148 @@ class _CurrentVersionBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Roadmap — futuros features (Sprint 4 backlog)
+// ─────────────────────────────────────────────────────────
+class _RoadmapCard extends StatelessWidget {
+  const _RoadmapCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.colorWarning.withValues(alpha: 0.10),
+            AppTheme.colorTransfer.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.colorWarning.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.rocket_launch_rounded,
+                  color: AppTheme.colorWarning, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Próximamente',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.colorWarning.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'EN PLAN',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.colorWarning,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Lo que viene en próximas releases. Si tenés feedback sobre cuál priorizar, escribime.',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.55),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Sprint 3 pendientes
+          _RoadmapSection('🤖 IA — fase 2'),
+          const _RoadmapItem(
+            icon: Icons.precision_manufacturing_rounded,
+            text: 'Ejecución real de slash commands (hoy reconocen el intent y muestran preview; falta crear la tx con resolución de cuentas/personas por hint)',
+          ),
+          const _RoadmapItem(
+            icon: Icons.document_scanner_rounded,
+            text: 'Categorización batch de PDFs importados con Haiku (1 call por import, ~\$0.002 por 30 movs)',
+          ),
+          const _RoadmapItem(
+            icon: Icons.calendar_today_rounded,
+            text: 'Parsing contextual de fechas en texto libre ("ayer cine 8k" → fecha = ayer)',
+          ),
+          const _RoadmapItem(
+            icon: Icons.history_toggle_off_rounded,
+            text: 'Comando /undo: revertir última acción (necesita pila de undo persistente)',
+          ),
+
+          const SizedBox(height: 8),
+
+          // Sprint 4 backlog
+          _RoadmapSection('🚀 Features grandes'),
+          const _RoadmapItem(
+            icon: Icons.widgets_rounded,
+            text: 'Widget Android nativo rediseñado: 2x1 (saldo + ✚) y 4x2 (saldo + 3 últimos movs + 🎤 voz)',
+          ),
+          const _RoadmapItem(
+            icon: Icons.flight_takeoff_rounded,
+            text: 'Modo Viaje: bucket temporal de gastos fuera del presupuesto regular del mes',
+          ),
+          const _RoadmapItem(
+            icon: Icons.favorite_rounded,
+            text: 'Modo Pareja / Familia: cuenta compartida real entre 2+ usuarios con sync Firestore',
+          ),
+          const _RoadmapItem(
+            icon: Icons.psychology_alt_rounded,
+            text: 'Reglas automáticas aprendidas: después de 2 correcciones de la misma desc, propone "¿Hacer regla?"',
+          ),
+          const _RoadmapItem(
+            icon: Icons.trending_up_rounded,
+            text: 'Dashboard ajustado por IPC (inflación AR): comparativas reales mes a mes con datos del INDEC',
+          ),
+          const _RoadmapItem(
+            icon: Icons.cloud_sync_rounded,
+            text: 'Backup automático en background con workmanager (no solo open-app check)',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoadmapSection extends StatelessWidget {
+  final String label;
+  const _RoadmapSection(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.colorWarning,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }

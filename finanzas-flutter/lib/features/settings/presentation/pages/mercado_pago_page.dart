@@ -8,6 +8,7 @@ import '../../../../core/providers/mercado_pago_provider.dart';
 import '../../../../core/services/mercado_pago_service.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../../../core/widgets/mp_account_selector_sheet.dart';
+import '../../../../core/utils/format_utils.dart';
 
 class MercadoPagoPage extends ConsumerStatefulWidget {
   const MercadoPagoPage({super.key});
@@ -457,7 +458,6 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(locale: 'es_AR', symbol: '\$');
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -479,7 +479,7 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            fmt.format(balance.availableBalance),
+            formatAmount(balance.availableBalance),
             style: GoogleFonts.inter(
               fontSize: 32,
               fontWeight: FontWeight.w800,
@@ -498,7 +498,7 @@ class _BalanceCard extends StatelessWidget {
                         .withValues(alpha: 0.5)),
                 const SizedBox(width: 4),
                 Text(
-                  'En proceso: ${fmt.format(balance.unavailableAmount)}',
+                  'En proceso: ${formatAmount(balance.unavailableAmount)}',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Theme.of(context)
@@ -785,8 +785,7 @@ class _MpInsightsCard extends ConsumerWidget {
         if (insights == null || insights.totalImported == 0) {
           return const SizedBox.shrink();
         }
-        final fmt = NumberFormat.currency(locale: 'es_AR', symbol: '\$');
-        final cs = Theme.of(context).colorScheme;
+            final cs = Theme.of(context).colorScheme;
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -819,7 +818,7 @@ class _MpInsightsCard extends ConsumerWidget {
                   Expanded(
                     child: _InsightChip(
                       label: 'Ingresos',
-                      value: fmt.format(insights.totalIncomes),
+                      value: formatAmount(insights.totalIncomes),
                       color: AppTheme.colorIncome,
                       icon: Icons.arrow_downward_rounded,
                     ),
@@ -828,7 +827,7 @@ class _MpInsightsCard extends ConsumerWidget {
                   Expanded(
                     child: _InsightChip(
                       label: 'Egresos',
-                      value: fmt.format(insights.totalExpenses),
+                      value: formatAmount(insights.totalExpenses),
                       color: AppTheme.colorExpense,
                       icon: Icons.arrow_upward_rounded,
                     ),
@@ -838,7 +837,7 @@ class _MpInsightsCard extends ConsumerWidget {
               if (insights.expensesByCategory.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'Mayor gasto: ${_categoryLabels[insights.topCategory] ?? insights.topCategory}  •  ${fmt.format(insights.expensesByCategory[insights.topCategory] ?? 0)}',
+                  'Mayor gasto: ${_categoryLabels[insights.topCategory] ?? insights.topCategory}  •  ${formatAmount(insights.expensesByCategory[insights.topCategory] ?? 0)}',
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     color: cs.onSurface.withValues(alpha: 0.55),
@@ -945,7 +944,6 @@ class _MovementTileState extends ConsumerState<_MovementTile> {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(locale: 'es_AR', symbol: '\$');
     final isIncome = widget.movement.amount > 0;
     final color = isIncome ? AppTheme.colorIncome : AppTheme.colorExpense;
     final icon = isIncome
@@ -1034,7 +1032,7 @@ class _MovementTileState extends ConsumerState<_MovementTile> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${isIncome ? '+' : ''}${fmt.format(widget.movement.amount)}',
+                '${isIncome ? '+' : ''}${formatAmount(widget.movement.amount)}',
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,

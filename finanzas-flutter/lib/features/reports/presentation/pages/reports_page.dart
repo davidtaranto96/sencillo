@@ -9,6 +9,7 @@ import 'package:open_filex/open_filex.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/database_providers.dart';
 import '../../../../core/utils/export_utils.dart';
+import '../../../../core/utils/format_utils.dart';
 
 import '../../../transactions/domain/models/transaction.dart';
 import '../../../monthly_overview/presentation/providers/monthly_overview_providers.dart';
@@ -179,10 +180,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(
-        symbol: '\$', decimalDigits: 0, locale: 'es_AR');
-    final fmtCompact = NumberFormat.compactCurrency(
-        symbol: '\$', decimalDigits: 1, locale: 'es_AR');
 
     // Get all transactions via stream and filter locally
     final allTxsAsync = ref.watch(transactionsStreamProvider);
@@ -377,8 +374,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
               children: [
                 // Tab 1: Resumen
                 _buildResumenTab(
-                  fmt: fmt,
-                  fmtCompact: fmtCompact,
                   income: income,
                   expense: expense,
                   balance: balance,
@@ -391,25 +386,20 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                 ),
                 // Tab 2: Categorías
                 _buildCategoriasTab(
-                  fmt: fmt,
-                  fmtCompact: fmtCompact,
                   sortedCats: sortedCats,
                   totalExpenseForPct: totalExpenseForPct,
                   transactions: transactions,
                 ),
                 // Tab 3: Tendencias
                 _buildTendenciasTab(
-                  fmtCompact: fmtCompact,
                   historicalTotals: historicalTotals,
                 ),
                 // Tab 4: Presupuestos
                 _buildPresupuestosTab(
-                  fmtCompact: fmtCompact,
                   budgets: budgets,
                   budgetsOnTrack: budgetsOnTrack,
                   budgetsOver: budgetsOver,
                   goals: goals,
-                  fmt: fmt,
                 ),
                 // Tab 5: Análisis
                 _buildAnalisisTab(
@@ -425,8 +415,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                   sharedTxs: sharedTxs.toList(),
                   pendingToRecover: pendingToRecover,
                   avgPerDay: avgPerDay,
-                  fmt: fmt,
-                  fmtCompact: fmtCompact,
                 ),
               ],
             ),
@@ -548,8 +536,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
   // TAB 1: RESUMEN
   // ═══════════════════════════════════════════════════
   Widget _buildResumenTab({
-    required NumberFormat fmt,
-    required NumberFormat fmtCompact,
     required double income,
     required double expense,
     required double balance,
@@ -582,14 +568,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
             Expanded(
                 child: _KpiCard(
                     label: 'Ingresos',
-                    value: fmt.format(income),
+                    value: formatAmount(income),
                     color: AppTheme.colorIncome,
                     icon: Icons.trending_up_rounded)),
             const SizedBox(width: 10),
             Expanded(
                 child: _KpiCard(
                     label: 'Gastos',
-                    value: fmt.format(expense),
+                    value: formatAmount(expense),
                     color: AppTheme.colorExpense,
                     icon: Icons.trending_down_rounded)),
           ]),
@@ -598,7 +584,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
             Expanded(
                 child: _KpiCard(
                     label: 'Balance',
-                    value: fmt.format(balance),
+                    value: formatAmount(balance),
                     color: balance >= 0
                         ? AppTheme.colorIncome
                         : AppTheme.colorExpense,
@@ -639,7 +625,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
             _QuickStat(
                 icon: Icons.speed_rounded,
                 label: 'Promedio/día',
-                value: fmtCompact.format(avgPerDay),
+                value: formatAmountCompact(avgPerDay),
                 color: AppTheme.colorWarning),
             const SizedBox(width: 8),
             _QuickStat(
@@ -652,7 +638,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
               _QuickStat(
                   icon: Icons.people_alt_rounded,
                   label: 'A cobrar',
-                  value: fmtCompact.format(pendingToRecover),
+                  value: formatAmountCompact(pendingToRecover),
                   color: AppTheme.colorTransfer),
             ],
           ]),
@@ -674,7 +660,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipItem: (group, gi, rod, ri) {
                       return BarTooltipItem(
-                        'Día ${group.x + 1}\n${fmtCompact.format(rod.toY)}',
+                        'Día ${group.x + 1}\n${formatAmountCompact(rod.toY)}',
                         const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -705,7 +691,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                       reservedSize: 36,
                       getTitlesWidget: (value, meta) {
                         if (value == 0) return const SizedBox.shrink();
-                        return Text(fmtCompact.format(value),
+                        return Text(formatAmountCompact(value),
                             style: const TextStyle(
                                 color: Colors.white24, fontSize: 9));
                       },
@@ -752,7 +738,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _MiniStat('Promedio/día', fmtCompact.format(avgPerDay)),
+              _MiniStat('Promedio/día', formatAmountCompact(avgPerDay)),
               _MiniStat('Movimientos', '$txCount'),
               if (dailySpending.any((d) => d > 0))
                 _MiniStat('Día más caro',
@@ -768,8 +754,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
   // TAB 2: CATEGORÍAS
   // ═══════════════════════════════════════════════════
   Widget _buildCategoriasTab({
-    required NumberFormat fmt,
-    required NumberFormat fmtCompact,
     required List<MapEntry<String, double>> sortedCats,
     required double totalExpenseForPct,
     required List<Transaction> transactions,
@@ -911,7 +895,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
   // TAB 3: TENDENCIAS
   // ═══════════════════════════════════════════════════
   Widget _buildTendenciasTab({
-    required NumberFormat fmtCompact,
     required List<MonthlyTotal> historicalTotals,
   }) {
     final catTrends = ref.watch(historicalCategoryTrendsProvider);
@@ -940,7 +923,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
             padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
             decoration: _cardDecoration(),
             child: _HistoricalChart(
-                totals: historicalTotals, fmtCompact: fmtCompact),
+                totals: historicalTotals),
           ),
           const SizedBox(height: 8),
           // Legend
@@ -963,7 +946,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
             padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
             decoration: _cardDecoration(),
             child: _BalanceBarChart(
-                totals: historicalTotals, fmtCompact: fmtCompact),
+                totals: historicalTotals),
           ),
 
           // Category trends
@@ -978,7 +961,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
               child: _CategoryTrendChart(
                 trends: catTrends,
                 topCats: topCats.map((e) => e.key).toList(),
-                fmtCompact: fmtCompact,
               ),
             ),
             const SizedBox(height: 8),
@@ -1001,8 +983,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
   // TAB 4: PRESUPUESTOS
   // ═══════════════════════════════════════════════════
   Widget _buildPresupuestosTab({
-    required NumberFormat fmtCompact,
-    required NumberFormat fmt,
     required List budgets,
     required int budgetsOnTrack,
     required int budgetsOver,
@@ -1087,15 +1067,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                     const SizedBox(height: 6),
                     Row(children: [
                       Text(
-                        '${fmtCompact.format(b.spentAmount)} / ${fmtCompact.format(b.limitAmount)}',
+                        '${formatAmountCompact(b.spentAmount)} / ${formatAmountCompact(b.limitAmount)}',
                         style: const TextStyle(
                             color: Colors.white38, fontSize: 11),
                       ),
                       const Spacer(),
                       Text(
                         isOver
-                            ? 'Excedido ${fmtCompact.format(remaining.abs())}'
-                            : 'Quedan ${fmtCompact.format(remaining)}',
+                            ? 'Excedido ${formatAmountCompact(remaining.abs())}'
+                            : 'Quedan ${formatAmountCompact(remaining)}',
                         style: TextStyle(
                           color: isOver
                               ? AppTheme.colorExpense
@@ -1161,7 +1141,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                                 fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
                         Text(
-                          '${fmtCompact.format(g.savedAmount)} / ${fmtCompact.format(g.targetAmount)}',
+                          '${formatAmountCompact(g.savedAmount)} / ${formatAmountCompact(g.targetAmount)}',
                           style: const TextStyle(
                               color: Colors.white38, fontSize: 11),
                         ),
@@ -1193,8 +1173,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
     required List<Transaction> sharedTxs,
     required double pendingToRecover,
     required double avgPerDay,
-    required NumberFormat fmt,
-    required NumberFormat fmtCompact,
   }) {
     final loansGiven = loans
         .where((t) => t.type == TransactionType.loanGiven)
@@ -1246,14 +1224,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                 children: [
                   _ProjectionRow(
                     label: 'Gasto estimado',
-                    value: fmtCompact.format(projectedExpense),
+                    value: formatAmountCompact(projectedExpense),
                     color: AppTheme.colorExpense,
                     icon: Icons.trending_up_rounded,
                   ),
                   const SizedBox(height: 8),
                   _ProjectionRow(
                     label: 'Balance estimado',
-                    value: fmtCompact.format(projectedBalance),
+                    value: formatAmountCompact(projectedBalance),
                     color: projectedBalance >= 0
                         ? AppTheme.colorIncome
                         : AppTheme.colorExpense,
@@ -1262,7 +1240,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                   const SizedBox(height: 8),
                   _ProjectionRow(
                     label: 'Ritmo diario ideal',
-                    value: fmtCompact.format(
+                    value: formatAmountCompact(
                         income > 0
                             ? (income * 0.8) / daysInMonth
                             : 0),
@@ -1288,19 +1266,19 @@ class _ReportsPageState extends ConsumerState<ReportsPage>
                   if (loansGiven > 0)
                     _LoanRow(
                         label: 'Prestado',
-                        value: fmtCompact.format(loansGiven),
+                        value: formatAmountCompact(loansGiven),
                         icon: Icons.arrow_upward_rounded,
                         color: AppTheme.colorExpense),
                   if (loansReceived > 0)
                     _LoanRow(
                         label: 'Recibido',
-                        value: fmtCompact.format(loansReceived),
+                        value: formatAmountCompact(loansReceived),
                         icon: Icons.arrow_downward_rounded,
                         color: AppTheme.colorIncome),
                   if (pendingToRecover > 0)
                     _LoanRow(
                         label: 'Pendiente a cobrar',
-                        value: fmtCompact.format(pendingToRecover),
+                        value: formatAmountCompact(pendingToRecover),
                         icon: Icons.schedule_rounded,
                         color: AppTheme.colorWarning),
                   if (sharedTxs.isNotEmpty)
@@ -1901,8 +1879,6 @@ class _CategoryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.compactCurrency(
-        symbol: '\$', decimalDigits: 0, locale: 'es_AR');
     return Row(children: [
       if (emoji != null) ...[
         Text(emoji!, style: const TextStyle(fontSize: 16)),
@@ -1942,7 +1918,7 @@ class _CategoryBar extends StatelessWidget {
       const SizedBox(width: 12),
       SizedBox(
         width: 70,
-        child: Text(fmt.format(amount),
+        child: Text(formatAmount(amount),
             textAlign: TextAlign.right,
             style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
@@ -1955,11 +1931,9 @@ class _CategoryBar extends StatelessWidget {
 
 class _HistoricalChart extends StatelessWidget {
   final List<MonthlyTotal> totals;
-  final NumberFormat fmtCompact;
 
   const _HistoricalChart({
     required this.totals,
-    required this.fmtCompact,
   });
 
   @override
@@ -1983,7 +1957,7 @@ class _HistoricalChart extends StatelessWidget {
           touchTooltipData: LineTouchTooltipData(
             getTooltipItems: (spots) => spots
                 .map((spot) => LineTooltipItem(
-                      fmtCompact.format(spot.y),
+                      formatAmountCompact(spot.y),
                       TextStyle(
                           color: spot.barIndex == 0
                               ? AppTheme.colorIncome
@@ -2026,7 +2000,7 @@ class _HistoricalChart extends StatelessWidget {
               reservedSize: 40,
               getTitlesWidget: (value, meta) {
                 if (value == 0) return const SizedBox.shrink();
-                return Text(fmtCompact.format(value),
+                return Text(formatAmountCompact(value),
                     style: const TextStyle(
                         color: Colors.white24, fontSize: 9));
               },
@@ -2079,11 +2053,9 @@ class _HistoricalChart extends StatelessWidget {
 
 class _BalanceBarChart extends StatelessWidget {
   final List<MonthlyTotal> totals;
-  final NumberFormat fmtCompact;
 
   const _BalanceBarChart({
     required this.totals,
-    required this.fmtCompact,
   });
 
   @override
@@ -2108,7 +2080,7 @@ class _BalanceBarChart extends StatelessWidget {
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
-              fmtCompact.format(rod.toY),
+              formatAmountCompact(rod.toY),
               TextStyle(
                   color: rod.toY >= 0
                       ? AppTheme.colorIncome
@@ -2142,7 +2114,7 @@ class _BalanceBarChart extends StatelessWidget {
               reservedSize: 40,
               getTitlesWidget: (value, meta) {
                 if (value == 0) return const SizedBox.shrink();
-                return Text(fmtCompact.format(value),
+                return Text(formatAmountCompact(value),
                     style: const TextStyle(
                         color: Colors.white24, fontSize: 9));
               },
@@ -2189,12 +2161,10 @@ class _BalanceBarChart extends StatelessWidget {
 class _CategoryTrendChart extends StatelessWidget {
   final Map<String, List<MonthlyCategoryAmount>> trends;
   final List<String> topCats;
-  final NumberFormat fmtCompact;
 
   const _CategoryTrendChart({
     required this.trends,
     required this.topCats,
-    required this.fmtCompact,
   });
 
   @override
@@ -2223,7 +2193,7 @@ class _CategoryTrendChart extends StatelessWidget {
               final catId =
                   spot.barIndex < topCats.length ? topCats[spot.barIndex] : '';
               return LineTooltipItem(
-                '${_catLabel(catId)}: ${fmtCompact.format(spot.y)}',
+                '${_catLabel(catId)}: ${formatAmountCompact(spot.y)}',
                 TextStyle(
                     color: _catColor(catId),
                     fontSize: 10,
@@ -2266,7 +2236,7 @@ class _CategoryTrendChart extends StatelessWidget {
               reservedSize: 40,
               getTitlesWidget: (value, meta) {
                 if (value == 0) return const SizedBox.shrink();
-                return Text(fmtCompact.format(value),
+                return Text(formatAmountCompact(value),
                     style: const TextStyle(
                         color: Colors.white24, fontSize: 9));
               },

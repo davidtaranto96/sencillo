@@ -15,14 +15,20 @@ abstract class AppTheme {
   static const _surface3Dark = Color(0xFF2E3253);    // surface elevada
 
   static const _onSurfaceDark = Color(0xFFF0F0FF);
-  static const _onSurfaceVariantDark = Color(0xFF9A9BBF);
+  // Subido de #9A9BBF (~3.1:1) a #A8ADC4 (~4.6:1 contra _surfaceDark) para cumplir WCAG AA.
+  static const _onSurfaceVariantDark = Color(0xFFA8ADC4);
 
   // Colores semánticos de la app
   static const colorIncome = Color(0xFF5ECFB1);
   static const colorExpense = Color(0xFFFF5C6E);
   static const colorTransfer = Color(0xFF7C6EF7);
   static const colorWarning = Color(0xFFFFB347);
-  static const colorNeutral = Color(0xFF9A9BBF);
+  static const colorNeutral = Color(0xFFA8ADC4);
+
+  // Tokens semánticos de texto (AA-compliant) — usar en lugar de Colors.white24/30/38/54.
+  static const textSecondaryDark = Color(0xFFA8ADC4);  // ~4.6:1 — texto secundario
+  static const textTertiaryDark  = Color(0xFF8087A3);  // ~3.5:1 — solo decorativo, NO texto importante
+  static const textDisabledDark  = Color(0xFF5D6076);  // sin contraste — solo iconos disabled
 
   // ──────────────────────────────────────────
   // Dark theme (principal)

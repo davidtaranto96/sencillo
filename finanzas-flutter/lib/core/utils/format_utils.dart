@@ -3,19 +3,32 @@ import 'package:flutter/services.dart';
 import '../../features/transactions/domain/models/transaction.dart';
 import '../theme/app_theme.dart';
 
-/// Formatea montos en ARS: $1.234.567
-String formatAmount(double amount, {bool compact = false}) {
+/// Formatea montos: $1.234.567 (default ARS, prefijo).
+///
+/// Parámetros:
+/// - [compact]: usa K/M para montos grandes (>= 1.000).
+/// - [symbol]: símbolo a usar antes del número. Default `$`. Para multi-moneda
+///   pasar e.g. `'USD '` y se renderiza como `USD 1.234`.
+/// - [decimals]: cantidad de decimales (default 0). Pone separador de miles `.`
+///   y decimal `,` siguiendo locale es_AR.
+String formatAmount(double amount, {bool compact = false, String symbol = '\$', int decimals = 0}) {
   final negative = amount < 0;
   final abs = amount.abs();
   if (compact && abs >= 1000000) {
-    return '${negative ? '-' : ''}\$${(abs / 1000000).toStringAsFixed(1)}M';
+    return '${negative ? '-' : ''}$symbol${(abs / 1000000).toStringAsFixed(1)}M';
   }
   if (compact && abs >= 1000) {
-    return '${negative ? '-' : ''}\$${(abs / 1000).toStringAsFixed(0)}K';
+    return '${negative ? '-' : ''}$symbol${(abs / 1000).toStringAsFixed(0)}K';
   }
-  final formatter = NumberFormat('#,##0', 'es_AR');
-  return '${negative ? '-' : ''}\$${formatter.format(abs)}';
+  final pattern = decimals > 0
+      ? '#,##0.${'0' * decimals}'
+      : '#,##0';
+  final formatter = NumberFormat(pattern, 'es_AR');
+  return '${negative ? '-' : ''}$symbol${formatter.format(abs)}';
 }
+
+/// Atajo: `formatAmount(x, compact: true)`. Útil para refactors automatizados.
+String formatAmountCompact(double amount) => formatAmount(amount, compact: true);
 
 /// TextInputFormatter que agrega separadores de miles (puntos) mientras escribís.
 /// Acepta solo dígitos, formatea como 1.234.567

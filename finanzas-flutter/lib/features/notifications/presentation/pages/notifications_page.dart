@@ -7,6 +7,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/providers/feedback_provider.dart';
 import '../../../../core/widgets/page_coach.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
@@ -110,42 +111,11 @@ class NotificationsPage extends ConsumerWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.notifications_off_rounded,
-              size: 48,
-              color: Colors.white.withValues(alpha: 0.25),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Sin notificaciones',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Las alertas de vencimientos y deudas\naparecerán aquí',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.3),
-            ),
-          ),
-        ],
-      ),
+    return const EmptyState(
+      variant: EmptyStateVariant.full,
+      icon: Icons.notifications_off_rounded,
+      title: 'Todo en orden',
+      description: 'Te avisamos cuando algo importante pase: vencimientos, deudas y alertas.',
     );
   }
 }

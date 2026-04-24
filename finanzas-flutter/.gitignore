@@ -12,6 +12,9 @@
 .swiftpm/
 migrate_working_dir/
 
+# Handoff de Claude Design (screenshots + reporte externo, no es código fuente)
+sencillo/
+
 # IntelliJ related
 *.iml
 *.ipr

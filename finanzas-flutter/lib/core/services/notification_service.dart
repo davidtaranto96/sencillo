@@ -558,9 +558,10 @@ class NotificationService {
         !t.date.isBefore(startOfDay) && t.date.isBefore(endOfDay)).toList();
 
     if (rows.isEmpty) {
+      // Sprint 2.12: copy más actionable que invita a abrir el AI sheet directo.
       return (
-        title: 'No registraste gastos hoy',
-        body: '¿Día sin gastos o te olvidaste de anotar algo?',
+        title: '¿Qué gastaste hoy?',
+        body: 'Tocá para escribirlo rápido — la IA categoriza solo.',
       );
     }
 

@@ -15,6 +15,27 @@ class CoachCard {
 }
 
 const Map<String, List<CoachCard>> kPageCoaches = {
+  'home_fab_ia': [
+    CoachCard(
+      emoji: '👇',
+      title: 'Tu primer gasto, en 5 segundos',
+      body:
+          'Tocá el botón violeta abajo y escribí lo que gastaste. La IA detecta categoría, monto y cuenta sola.',
+      tip: 'Probá: "café 3500" o "uber al centro 4200".',
+    ),
+    CoachCard(
+      emoji: '🎤',
+      title: 'También por voz',
+      body:
+          'Mantené apretado el botón para dictar el gasto. Al soltar se procesa solo.',
+    ),
+    CoachCard(
+      emoji: '🔁',
+      title: 'Doble tap = duplicar',
+      body:
+          'Si gastás en lo mismo seguido (ej: dos cafés en el día), doble tap al botón duplica el último.',
+    ),
+  ],
   'transactions': [
     CoachCard(
       emoji: '📋',
